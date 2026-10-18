@@ -1,0 +1,95 @@
+# Makler-Prozess – baut bei jeder Änderung die Android-App (APK) und veröffentlicht die Browser-App (GitHub Pages).
+# Einmalig nötig: Settings → Pages → Source „GitHub Actions“; Secrets ANDROID_KEYSTORE_B64 + ANDROID_KEYSTORE_PASSWORD.
+name: Tablet-App bauen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: tablet-app
+  cancel-in-progress: true
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Browser-App bauen
+        run: node tools/build-web.js
+
+      - name: Android-Projekt aktualisieren
+        run: npx cap sync android
+
+      - name: Signierschlüssel bereitstellen
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/makler.jks"
+            echo "MP_KEYSTORE_FILE=$RUNNER_TEMP/makler.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Kein Signierschlüssel hinterlegt – die APK wird mit einem Testschlüssel signiert. Updates lassen sich dann nur nach Deinstallation einspielen."
+          fi
+
+      - name: Android-App (APK) bauen
+        working-directory: android
+        env:
+          MP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: APK benennen
+        run: |
+          V=$(node -p "require('./package.json').version")
+          cp android/app/build/outputs/apk/release/app-release.apk "MaklerProzess_v${V}.apk"
+          echo "MP_VERSION=$V" >> "$GITHUB_ENV"
+
+      - name: APK als Download ablegen
+        uses: actions/upload-artifact@v6
+        with:
+          name: MaklerProzess-Android-APK
+          path: MaklerProzess_v*.apk
+
+      - name: Browser-App mit APK-Download bauen
+        run: node tools/build-web.js --apk "MaklerProzess_v${MP_VERSION}.apk"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: www
+
+  veroeffentlichen:
+    needs: bauen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v4
