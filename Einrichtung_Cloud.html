@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Makler-Prozess – Einrichtung Cloud-Sync</title>
+<style>
+:root{--bg:#f3f4f6;--p:#fff;--ink:#1b2430;--mute:#66717f;--line:#e3e6ea;--acc:#2563eb;--accs:#e8efff;--code:#eef1f4;--warn:#9a5b00;--warns:#fdf1df}
+@media (prefers-color-scheme:dark){:root{--bg:#13161b;--p:#1b1f26;--ink:#e6eaef;--mute:#9aa4b1;--line:#2b313a;--acc:#6b95ff;--accs:#1f2a44;--code:#262b34;--warn:#f0a43a;--warns:#38290f}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",system-ui,sans-serif}.w{max-width:960px;margin:0 auto;padding:36px 22px 70px}
+h1{margin:0 0 4px}.sub{color:var(--mute);margin:0 0 26px}h2{margin:34px 0 10px;padding-top:18px;border-top:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;background:var(--p);border:1px solid var(--line);margin:10px 0}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:.95rem}th{background:var(--code)}
+code,kbd{background:var(--code);padding:1px 6px;border-radius:4px;font-size:.9em}.tip{background:var(--accs);border-left:4px solid var(--acc);padding:10px 14px;margin:12px 0}.warn{background:var(--warns);border-left:4px solid var(--warn);padding:10px 14px;margin:12px 0}
+ol li{margin:6px 0}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:var(--p);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+@media(max-width:700px){.cards{grid-template-columns:1fr}}
+</style></head><body><div class="w">
+<h1>Einrichtung Cloud-Sync</h1><p class="sub">Makler-Prozess 2.1 · Nextcloud oder OneDrive/SharePoint vorbereiten · ca. 10 Minuten</p>
+
+<div class="cards"><div class="card"><b>Nextcloud</b><br>Benötigt: Nextcloud-Adresse, Benutzername, <b>App-Passwort</b>, gemeinsamer Ordner.</div>
+<div class="card"><b>OneDrive / SharePoint</b><br>Benötigt: einmalige <b>App-Registrierung</b> im Microsoft-365-Konto des Büros (Anwendungs-ID), Zielordner.</div></div>
+
+<h2>1. Nextcloud</h2>
+<h3>App-Passwort erstellen (je Gerät empfohlen)</h3>
+<ol><li>Nextcloud im Browser öffnen und anmelden.</li>
+<li>Oben rechts auf das Profilbild → <b>Persönliche Einstellungen</b> → <b>Sicherheit</b>.</li>
+<li>Unten bei <b>Geräte &amp; Sitzungen</b> einen Namen eingeben, z. B. <code>Makler-Prozess PC Büro</code> → <b>Neues App-Passwort erstellen</b>.</li>
+<li>Angezeigtes Passwort kopieren und im Einrichtungs-Assistenten der App eintragen. Es wird nur einmal angezeigt.</li></ol>
+<p class="tip">Ein App-Passwort lässt sich dort jederzeit einzeln widerrufen (z. B. bei Verlust des Tablets), ohne das Hauptpasswort zu ändern.</p>
+<h3>Gemeinsamer Ordner für das Büro</h3>
+<table><tr><th>Variante</th><th>So geht's</th></tr>
+<tr><td><b>Ein Büro-Konto</b> (am einfachsten)</td><td>Ein Nextcloud-Konto, z. B. <code>buero</code>. Alle Geräte melden sich damit an (je Gerät ein eigenes App-Passwort). Ordner: <code>MaklerProzess</code>.</td></tr>
+<tr><td><b>Persönliche Konten</b></td><td>Am ersten Gerät den Ordner <code>MaklerProzess</code> anlegen und an die Kollegen <b>mit Bearbeitungsrecht freigeben</b>. Jeder trägt in der App sein eigenes Konto und den Ordnernamen ein, wie er bei ihm erscheint.</td></tr></table>
+<h3>Angaben im Assistenten</h3>
+<table><tr><th>Feld</th><th>Beispiel</th></tr>
+<tr><td>Nextcloud-Adresse</td><td><code>https://cloud.beispiel.de</code> (Adresse aus dem Browser, ohne <code>/apps/…</code>)</td></tr>
+<tr><td>Benutzername</td><td>Anmeldename in Nextcloud</td></tr><tr><td>App-Passwort</td><td>aus Schritt oben</td></tr><tr><td>Ordner</td><td><code>MaklerProzess</code></td></tr></table>
+
+<h2>2. OneDrive / SharePoint (Microsoft 365)</h2>
+<p>Damit die App auf OneDrive zugreifen darf, braucht das Büro einmalig eine <b>App-Registrierung</b>. Das erledigt der Microsoft-365-Administrator.</p>
+<h3>App-Registrierung anlegen</h3>
+<ol><li><b>entra.microsoft.com</b> öffnen → <b>Anwendungen</b> → <b>App-Registrierungen</b> → <b>Neue Registrierung</b>.</li>
+<li>Name: <code>Makler-Prozess</code> · Unterstützte Kontotypen: <b>Nur Konten in diesem Organisationsverzeichnis</b> · Umleitungs-URI leer lassen → <b>Registrieren</b>.</li>
+<li>Auf der Übersichtsseite notieren: <b>Anwendungs-ID (Client)</b> und <b>Verzeichnis-ID (Mandant)</b>.</li>
+<li><b>Authentifizierung</b> → <b>Erweiterte Einstellungen</b>: <b>Öffentliche Clientflows zulassen</b> auf <b>Ja</b> stellen → <b>Speichern</b>. (Englisch: <i>Allow public client flows</i>.) Nötig für die Anmeldung per Code.</li>
+<li><b>API-Berechtigungen</b> → <b>Berechtigung hinzufügen</b> → <b>Microsoft Graph</b> → <b>Delegierte Berechtigungen</b>: <code>Files.ReadWrite.All</code>, <code>Sites.ReadWrite.All</code>, <code>User.Read</code>, <code>offline_access</code> → hinzufügen.</li>
+<li><b>Administratorzustimmung für … erteilen</b> klicken.</li></ol>
+<p class="warn">Die Bezeichnungen im Microsoft-Portal ändern sich gelegentlich leicht. Die Einstellung für öffentliche Clientflows liegt je nach Ansicht unter <b>Authentifizierung</b> → <b>Einstellungen</b> bzw. <b>Erweiterte Einstellungen</b>.</p>
+<h3>Angaben im Assistenten</h3>
+<table><tr><th>Feld</th><th>Wert</th></tr>
+<tr><td>Anwendungs-ID (Client-ID)</td><td>aus Schritt 3</td></tr>
+<tr><td>Mandant</td><td>Verzeichnis-ID aus Schritt 3 oder die Domäne, z. B. <code>lugtiv.de</code> (<code>organizations</code> geht auch)</td></tr>
+<tr><td>Anmelden</td><td>„Bei Microsoft anmelden“ → im Browser öffnet sich <b>microsoft.com/devicelogin</b> → angezeigten Code eingeben → mit dem Büro-Konto anmelden und zustimmen</td></tr></table>
+<h3>Zielordner wählen</h3>
+<table><tr><th>Ziel</th><th>Wann</th></tr>
+<tr><td><b>Mein OneDrive</b></td><td>alle Geräte melden sich mit <b>demselben</b> Büro-Konto an</td></tr>
+<tr><td><b>SharePoint-Website</b></td><td>Mitarbeiter mit <b>eigenen</b> Konten; Adresse z. B. <code>https://firma.sharepoint.com/sites/Makler</code> – der Ordner wird in der Dokumentbibliothek angelegt</td></tr>
+<tr><td><b>Mit mir geteilt</b></td><td>der Ordner <code>MaklerProzess</code> wurde aus einem anderen OneDrive mit Bearbeitungsrecht freigegeben</td></tr></table>
+
+<h2>3. Büro einrichten und Geräte verbinden</h2>
+<ol><li><b>Erstes Gerät</b> (mit den bisherigen Daten): Einstellungen → Daten &amp; Sicherung → <b>Cloud-Sync einrichten</b> → Anbieter → Anmeldung → <b>Büro-Passwort</b> (mind. 10 Zeichen) → Hochladen.</li>
+<li>Danach <b>Wiederherstellungsschlüssel</b> (Einstellungen → Daten &amp; Sicherung) ausdrucken bzw. im Passwort-Manager ablegen.</li>
+<li><b>Weitere Geräte:</b> beim ersten Start <b>„Bestehendem Büro (Cloud) beitreten“</b> → gleicher Ordner, gleiches Büro-Passwort → anschließend den eigenen Mitarbeiter wählen.</li></ol>
+<p class="warn"><b>Datenschutz:</b> Mieter- und Bonitätsdaten liegen verschlüsselt in der Cloud, Dokumente (Protokolle, Fotos, Verträge) jedoch lesbar im Ordner <code>dateien</code>. Mit dem Cloud-Anbieter sollte ein <b>Auftragsverarbeitungsvertrag (AVV)</b> bestehen und der Speicherort in der EU liegen.</p>
+
+<h2>4. Tablet (Android-App / Browser-App)</h2>
+<p>Das Tablet tritt wie jedes weitere Gerät dem Büro bei. Installation, GitHub-Bau sowie die Zusatzeinstellungen für die <b>Browser-App</b> (Nextcloud-CORS-Freigabe, OneDrive-Umleitungs-URI für „Single-Page-Anwendung“) stehen in <b>Einrichtung_Tablet.html</b>. Die <b>Android-App</b> braucht keine Zusatzeinstellungen.</p>
+
+<h2>5. Was liegt wo in der Cloud?</h2>
+<table><tr><th>Ordner</th><th>Inhalt</th><th>Lesbar?</th></tr>
+<tr><td><code>office.json</code></td><td>Kennung des Büros und Prüfwert für das Passwort</td><td>ja, enthält keine Daten</td></tr>
+<tr><td><code>sync/&lt;Gerät&gt;/</code></td><td>Änderungspakete je Gerät</td><td>nein – AES-256 verschlüsselt</td></tr>
+<tr><td><code>snapshot/</code></td><td>Gesamtstand zum schnellen Beitreten neuer Geräte</td><td>nein – verschlüsselt</td></tr>
+<tr><td><code>devices/</code></td><td>Gerätename, Version, letzter Abgleich</td><td>ja</td></tr>
+<tr><td><code>dateien/Objekte/…</code></td><td>Protokolle, Fotos, Anhänge, PDFs – gleiche Struktur wie lokal</td><td>ja</td></tr></table>
+<p class="tip">Bitte in der Cloud <b>nichts in <code>sync</code>, <code>snapshot</code> oder <code>office.json</code> ändern oder löschen</b>. Dokumente im Ordner <code>dateien</code> können gelesen und heruntergeladen werden.</p>
+</div></body></html>

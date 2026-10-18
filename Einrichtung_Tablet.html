@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Einrichtung Tablet</title>
+<style>
+:root{--bg:#f3f4f6;--p:#fff;--ink:#1b2430;--mute:#66717f;--line:#e3e6ea;--acc:#2563eb;--accs:#e8efff;--code:#eef1f4;--warn:#9a5b00;--warns:#fdf1df;--ok:#1f7a45;--oks:#e4f5eb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#13161b;--p:#1b1f26;--ink:#e6eaef;--mute:#9aa4b1;--line:#2b313a;--acc:#6b95ff;--accs:#1f2a44;--code:#262b34;--warn:#f0a43a;--warns:#38290f;--ok:#3fc27a;--oks:#163222}}
+:root[data-theme="dark"]{--bg:#13161b;--p:#1b1f26;--ink:#e6eaef;--mute:#9aa4b1;--line:#2b313a;--acc:#6b95ff;--accs:#1f2a44;--code:#262b34;--warn:#f0a43a;--warns:#38290f;--ok:#3fc27a;--oks:#163222}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",system-ui,sans-serif}.w{max-width:980px;margin:0 auto;padding:36px 16px 70px}
+h1{margin:0 0 4px}.sub{color:var(--mute);margin:0 0 22px}h2{margin:36px 0 10px;padding-top:18px;border-top:1px solid var(--line)}h3{margin:22px 0 8px}
+table{border-collapse:collapse;width:100%;background:var(--p);border:1px solid var(--line);margin:10px 0}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:.95rem}th{background:var(--code)}
+code,kbd{background:var(--code);padding:1px 6px;border-radius:4px;font-size:.9em;word-break:break-all}pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:.84rem;line-height:1.45}
+.tip{background:var(--accs);border-left:4px solid var(--acc);padding:10px 14px;margin:12px 0}.warn{background:var(--warns);border-left:4px solid var(--warn);padding:10px 14px;margin:12px 0}.ok{background:var(--oks);border-left:4px solid var(--ok);padding:10px 14px;margin:12px 0}
+ol li{margin:7px 0}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:var(--p);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 6px}.flow span{background:var(--p);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.92rem}.flow b{color:var(--acc)}.flow i{color:var(--mute);font-style:normal}
+.step{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-weight:700;font-size:.85rem;margin-right:6px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}.toc a{text-decoration:none;color:var(--ink);background:var(--p);border:1px solid var(--line);border-radius:99px;padding:4px 11px;font-size:.86rem}
+@media(max-width:700px){.cards{grid-template-columns:1fr}}
+</style></head><body><div class="w">
+<h1>Einrichtung Tablet</h1>
+<p class="sub">Makler-Prozess 2.1 · Android-App und Browser-App über GitHub bauen und auf dem Tablet installieren · einmalig ca. 30 Minuten</p>
+
+<div class="flow"><span>📦 Repo-ZIP</span><i>→</i><span><b>GitHub</b> baut automatisch</span><i>→</i><span>🌐 Browser-App<br><small>https://KONTO.github.io/makler-prozess/</small></span><i>+</i><span>🤖 Android-App<br><small>…/MaklerProzess.apk</small></span><i>→</i><span>📱 Tablet ⇄ ☁️ Cloud ⇄ 💻 PC</span></div>
+<p class="hint" style="color:var(--mute);font-size:.9rem">GitHub enthält nur den Programmcode. Büro-Daten fließen nie über GitHub, sondern direkt zwischen Tablet, Cloud und PC.</p>
+
+<div class="toc"><a href="#weg">1. Welcher Weg?</a><a href="#github">2. GitHub einrichten</a><a href="#install">3. Tablet installieren</a><a href="#nextcloud">4. Nextcloud für die Browser-App</a><a href="#onedrive">5. OneDrive für die Browser-App</a><a href="#update">6. Updates</a><a href="#fehler">7. Fehlersuche</a></div>
+
+<h2 id="weg">1. Android-App oder Browser-App?</h2>
+<table><tr><th></th><th>Android-App (APK) – empfohlen</th><th>Browser-App (PWA)</th></tr>
+<tr><td>Installation</td><td>APK laden und installieren</td><td>Chrome → „App installieren“</td></tr>
+<tr><td>Nextcloud</td><td style="color:var(--ok)">ohne Zusatzeinstellung</td><td>CORS-Freigabe am Nextcloud-Server nötig (Kapitel 4)</td></tr>
+<tr><td>OneDrive</td><td style="color:var(--ok)">Anmeldung per Code wie am PC, bleibt ~90 Tage gültig</td><td>zusätzliche Umleitungs-URI in der App-Registrierung; Anmeldung ca. täglich kurz bestätigen</td></tr>
+<tr><td>Kamera, Teilen, Zurück-Taste</td><td>direkt (Android-Teilen-Menü)</td><td>über den Browser</td></tr>
+<tr><td>Offline</td><td>ja</td><td>ja (nach erstem Laden)</td></tr>
+<tr><td>Updates</td><td>neue APK drüber installieren</td><td>automatisch, Hinweis „Neue Version“</td></tr></table>
+<p class="tip">Beide Wege nutzen denselben Code und dasselbe Büro. Die Browser-App eignet sich auch zum schnellen Ausprobieren – oder für ein zweites Gerät ohne Installation.</p>
+
+<h2 id="github">2. GitHub einrichten (einmalig, am PC)</h2>
+<p>Benötigt: die Dateien <code>MaklerProzess_v2.1.0_Repo.zip</code> und <code>MaklerProzess_Android-Signierschluessel.zip</code>.</p>
+
+<h3><span class="step">1</span>Konto und Repository anlegen</h3>
+<ol><li><b>github.com</b> öffnen → anmelden bzw. <b>Sign up</b> (kostenloses Konto genügt).</li>
+<li>Oben rechts <b>+</b> → <b>New repository</b>.</li>
+<li><b>Repository name</b>: <code>makler-prozess</code> · Sichtbarkeit <b>Public</b> · <i>Add a README</i> <b>nicht</b> anhaken → <b>Create repository</b>.</li></ol>
+<p class="warn"><b>Warum „Public“?</b> Die kostenlose Veröffentlichung der Browser-App (GitHub Pages) setzt ein öffentliches Repository voraus. Sichtbar ist nur der Programmcode – keine Daten, keine Passwörter, kein Signierschlüssel (der liegt verschlüsselt in den Secrets). Wer das nicht möchte: <b>Private</b> wählen und GitHub Pro nutzen, oder auf die Browser-App verzichten (die APK gibt es dann unter <i>Actions → Artifacts</i>).</p>
+
+<h3><span class="step">2</span>Signierschlüssel als Secrets hinterlegen</h3>
+<p>Damit jede neue APK über die alte installiert werden kann, wird sie immer mit demselben Schlüssel signiert.</p>
+<ol><li><code>MaklerProzess_Android-Signierschluessel.zip</code> entpacken.</li>
+<li>Im Repository: <b>Settings</b> → links <b>Secrets and variables</b> → <b>Actions</b> → <b>New repository secret</b>.</li>
+<li>Name <code>ANDROID_KEYSTORE_B64</code> · Secret: kompletten Inhalt der Datei <code>ANDROID_KEYSTORE_B64.txt</code> einfügen → <b>Add secret</b>.</li>
+<li>Noch einmal <b>New repository secret</b>: Name <code>ANDROID_KEYSTORE_PASSWORD</code> · Secret: Inhalt von <code>ANDROID_KEYSTORE_PASSWORD.txt</code> → <b>Add secret</b>.</li></ol>
+<p class="warn">Das Schlüssel-ZIP <b>sicher aufbewahren</b> (Passwort-Manager / Tresor), nicht ins Repository hochladen. Geht der Schlüssel verloren, lässt sich die App nur nach Deinstallation aktualisieren.</p>
+
+<h3><span class="step">3</span>GitHub Pages einschalten</h3>
+<ol><li><b>Settings</b> → links <b>Pages</b>.</li>
+<li>Unter <b>Build and deployment</b> → <b>Source</b>: <b>GitHub Actions</b> wählen. (Kein weiterer Knopf nötig.)</li></ol>
+
+<h3><span class="step">4</span>Code hochladen (zwei Durchgänge, je max. 100 Dateien)</h3>
+<ol><li><code>MaklerProzess_v2.1.0_Repo.zip</code> entpacken → Ordner <code>makler-prozess</code> öffnen.</li>
+<li>Im Repository <b>Code</b> → Link <b>uploading an existing file</b> (bzw. später <b>Add file → Upload files</b>).</li>
+<li><b>Durchgang A:</b> nur den Ordner <code>android</code> in das Browserfenster ziehen → warten, bis alle Dateien gelistet sind → unten <b>Commit changes</b>.</li>
+<li><b>Durchgang B:</b> <b>Add file → Upload files</b> → <b>alle übrigen</b> Dateien und Ordner markieren (inkl. <code>.github</code>, <code>.gitignore</code>) und hineinziehen → <b>Commit changes</b>.</li></ol>
+<p class="tip">Erst mit Durchgang B kommt die Bauanleitung (<code>.github/workflows</code>) dazu – der Bau startet dann automatisch mit vollständigem Code. Unter Windows sind Ordner mit Punkt (<code>.github</code>) normal sichtbar. Alternativ geht das Hochladen bequem mit <b>GitHub Desktop</b>.</p>
+
+<h3><span class="step">5</span>Bau abwarten</h3>
+<ol><li>Reiter <b>Actions</b> → Lauf <b>„Tablet-App bauen“</b> (gelber Punkt = läuft, ca. 6–10 Minuten).</li>
+<li>Grüner Haken → fertig. Unter dem Lauf: <b>Artifacts → MaklerProzess-Android-APK</b> und oben die Adresse der Browser-App.</li></ol>
+<div class="ok"><b>Ergebnis</b><br>Browser-App: <code>https://KONTO.github.io/makler-prozess/</code><br>Android-App: <code>https://KONTO.github.io/makler-prozess/MaklerProzess.apk</code><br><small>KONTO = GitHub-Benutzername (klein geschrieben).</small></div>
+
+<h2 id="install">3. Tablet installieren</h2>
+<div class="cards"><div class="card"><b>Android-App</b><ol><li>Am Tablet in Chrome <code>https://KONTO.github.io/makler-prozess/MaklerProzess.apk</code> öffnen → herunterladen.</li>
+<li>Download antippen → Hinweis „Unbekannte Apps“ → <b>Einstellungen</b> → <b>Dieser Quelle vertrauen</b> → zurück → <b>Installieren</b>.</li>
+<li>Meldet Google Play Protect „unbekannte App“: <b>Weitere Details → Trotzdem installieren</b>.</li>
+<li>App <b>Makler-Prozess</b> öffnen.</li></ol></div>
+<div class="card"><b>Browser-App</b><ol><li>Am Tablet in Chrome <code>https://KONTO.github.io/makler-prozess/</code> öffnen.</li>
+<li>Menü <b>⋮</b> → <b>App installieren</b> (oder „Zum Startbildschirm hinzufügen“).</li>
+<li>Ab jetzt über das Symbol starten – läuft wie eine App und auch offline.</li></ol>
+<p style="font-size:.9rem;color:var(--mute)">Für Nextcloud/OneDrive vorher Kapitel 4 bzw. 5 erledigen.</p></div></div>
+<h3>Erster Start</h3>
+<ol><li><b>Bestehendem Büro beitreten</b> wählen (das Büro wird am PC eingerichtet: Einstellungen → Daten &amp; Sicherung → Cloud-Sync einrichten).</li>
+<li>Anbieter, Zugangsdaten und Cloud-Ordner wie am PC eintragen. Für Nextcloud ein <b>eigenes App-Passwort für das Tablet</b> erstellen.</li>
+<li><b>Büro-Passwort</b> (oder Wiederherstellungsschlüssel) eingeben, Gerätename z. B. „Tablet Außendienst“.</li>
+<li>Mitarbeiter antippen → <b>PIN festlegen</b> (4–6 Ziffern, zweimal). Hat der Mitarbeiter am PC schon eine PIN, gilt diese.</li></ol>
+<p class="tip">Zum Ausprobieren ohne Cloud: „Ausprobieren mit Beispieldaten“. Später unter <b>Gerät → Gerät zurücksetzen</b> entfernen und dem Büro beitreten.</p>
+
+<h2 id="nextcloud">4. Nextcloud für die Browser-App freigeben (CORS)</h2>
+<p>Ein Browser darf nur auf fremde Server zugreifen, wenn diese es erlauben. Die <b>Android-App braucht das nicht</b>. Für die Browser-App muss die Nextcloud Zugriffe von <code>https://KONTO.github.io</code> erlauben – nur für die Dateischnittstelle <code>/remote.php/dav/</code>.</p>
+<p class="warn">Nur die eigene Herkunft eintragen (nie <code>*</code>). Bei gehosteter Nextcloud (Anbieter) ist das meist nicht einstellbar → Android-App verwenden.</p>
+<h3>nginx (eigener Reverse-Proxy vor der Nextcloud)</h3>
+<pre>
+# im server { … }-Block der Nextcloud ergänzen – vor dem allgemeinen location /
+location ^~ /remote.php/dav/ {
+    if ($request_method = OPTIONS) {
+        add_header Access-Control-Allow-Origin  "https://KONTO.github.io" always;
+        add_header Access-Control-Allow-Methods "GET, PUT, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type, Depth, Destination, Overwrite" always;
+        add_header Access-Control-Max-Age 3600 always;
+        return 204;
+    }
+    proxy_hide_header Access-Control-Allow-Origin;
+    add_header Access-Control-Allow-Origin  "https://KONTO.github.io" always;
+    add_header Access-Control-Expose-Headers "ETag, DAV" always;
+    # die proxy_pass- und proxy_set_header-Zeilen aus dem bestehenden location / hierher kopieren, z. B.:
+    proxy_pass http://127.0.0.1:11000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    client_max_body_size 1G;
+}
+</pre>
+<p><b>Nginx Proxy Manager</b> (häufig auf NAS-Systemen): Proxy-Host der Nextcloud → <b>Advanced</b> → <i>Custom Nginx Configuration</i>: obigen Block einfügen und <code>proxy_pass</code> durch <code>proxy_pass $forward_scheme://$server:$port;</code> ersetzen.</p>
+<h3>Apache (Nextcloud direkt auf Apache)</h3>
+<pre>
+# in der VirtualHost-Konfiguration (benötigt mod_headers und mod_rewrite)
+&lt;LocationMatch "^/remote.php/dav/"&gt;
+    Header always set Access-Control-Allow-Origin  "https://KONTO.github.io"
+    Header always set Access-Control-Allow-Methods "GET, PUT, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Depth, Destination, Overwrite"
+    Header always set Access-Control-Expose-Headers "ETag, DAV"
+&lt;/LocationMatch&gt;
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^/?remote\.php/dav/ - [R=204,L]
+</pre>
+<p><b>Prüfen:</b> Browser-App öffnen → „Bestehendem Büro beitreten“ → Nextcloud. Erscheint „Zugriff aus dem Browser (CORS) nicht freigegeben“, greift die Freigabe noch nicht (Server neu laden, Adresse/Herkunft prüfen). Die Nextcloud muss per <b>HTTPS</b> erreichbar sein.</p>
+
+<h2 id="onedrive">5. OneDrive für die Browser-App (App-Registrierung ergänzen)</h2>
+<p>Die bestehende App-Registrierung (siehe Einrichtung_Cloud.html) bekommt eine zusätzliche Plattform. Die <b>Android-App braucht das nicht</b> – sie meldet sich wie der PC per Code an.</p>
+<ol><li><b>entra.microsoft.com</b> → <b>Anwendungen</b> → <b>App-Registrierungen</b> → <b>Makler-Prozess</b>.</li>
+<li><b>Authentifizierung</b> → <b>Plattform hinzufügen</b> → <b>Single-Page-Anwendung</b>.</li>
+<li>Umleitungs-URI: <code>https://KONTO.github.io/makler-prozess/auth.html</code> (exakt so, wie sie im Assistenten der Browser-App angezeigt wird) → <b>Konfigurieren</b>.</li></ol>
+<p class="tip">Microsoft begrenzt Anmeldungen von Browser-Apps auf 24 Stunden. Zeigt die Leiste „Cloud-Anmeldung nötig“, darauf tippen – das Anmeldefenster schließt sich meist sofort wieder. Offline erfasste Änderungen bleiben bis dahin erhalten.</p>
+
+<h2 id="update">6. Updates</h2>
+<table><tr><th>Was</th><th>So geht's</th></tr>
+<tr><td>Neue Version des Codes</td><td>Neues Repo-ZIP entpacken → im Repository <b>Add file → Upload files</b> → geänderte Dateien/Ordner hineinziehen (gleiche Namen werden ersetzt) → <b>Commit changes</b>. Der Bau startet automatisch.</td></tr>
+<tr><td>Android-App</td><td>Am Tablet die APK-Adresse erneut öffnen → herunterladen → installieren („Aktualisieren“). <b>Daten bleiben erhalten.</b></td></tr>
+<tr><td>Browser-App</td><td>Unten erscheint „Neue Version verfügbar“ → <b>Jetzt aktualisieren</b>.</td></tr>
+<tr><td>Windows-App</td><td>wie bisher über das Update-Paket.</td></tr></table>
+<p>Version prüfen: am Tablet <b>Gerät</b> (oben „Version …“), am PC links unten.</p>
+
+<h2 id="fehler">7. Fehlersuche</h2>
+<table><tr><th>Meldung / Symptom</th><th>Ursache &amp; Lösung</th></tr>
+<tr><td>Actions: roter Lauf bei „Android-App (APK) bauen“, <i>Keystore was tampered with, or password was incorrect</i></td><td>Secret falsch eingefügt → beide Secrets neu anlegen (Inhalt vollständig, ohne Leerzeilen) → Lauf <b>Re-run all jobs</b>.</td></tr>
+<tr><td>Actions: gelbe Warnung „Kein Signierschlüssel hinterlegt“</td><td>Secrets fehlen. APK ist trotzdem nutzbar, aber spätere Updates nur nach Deinstallation. Secrets anlegen, neu bauen.</td></tr>
+<tr><td>Actions: Fehler bei „veroeffentlichen“ (<i>Get Pages site failed</i>)</td><td>Pages nicht auf „GitHub Actions“ gestellt (Schritt 3) → nachholen → Re-run.</td></tr>
+<tr><td>Tablet: „App nicht installiert“ beim Update</td><td>Alte APK mit anderem Schlüssel. Zuerst am Tablet synchronisieren, dann alte App deinstallieren und neu installieren und beitreten.</td></tr>
+<tr><td>Browser-App: „Server nicht erreichbar oder Zugriff aus dem Browser (CORS) nicht freigegeben“</td><td>Nextcloud-Freigabe fehlt (Kapitel 4) – oder Android-App verwenden.</td></tr>
+<tr><td>OneDrive: <i>AADSTS50011</i> (Umleitungs-URI)</td><td>URI in der App-Registrierung weicht ab → exakt wie im Assistenten angezeigt eintragen (inkl. <code>/auth.html</code>).</td></tr>
+<tr><td>OneDrive: <i>AADSTS9002326</i></td><td>Plattform falsch als „Web“ angelegt → als <b>Single-Page-Anwendung</b> anlegen.</td></tr>
+<tr><td>„Anmeldefenster wurde blockiert“</td><td>Pop-ups für die Seite erlauben (Adressleiste → Symbol → Immer zulassen).</td></tr>
+<tr><td>„Für … ist noch keine PIN vergeben“</td><td>Am PC: Einstellungen → Mitarbeiter → PIN festlegen. Nach dem Abgleich gilt sie am Tablet.</td></tr>
+<tr><td>Dokument öffnet nicht („nicht vorhanden“)</td><td>Fremde Dokumente werden erst beim Öffnen geladen – dafür ist Verbindung nötig.</td></tr></table>
+
+<h2>Sicherheit &amp; Datenschutz</h2>
+<ul><li>Büro-Daten liegen am Tablet im App-Speicher (Android-verschlüsselt), in der Cloud <b>AES-256-verschlüsselt</b>; Dokumente lesbar im Cloud-Ordner <code>dateien</code> (wie am PC).</li>
+<li>Zugangsdaten (App-Passwort, Microsoft-Anmeldung, Büro-Schlüssel) werden am Tablet mit einem nicht exportierbaren Geräteschlüssel verschlüsselt gespeichert.</li>
+<li>PIN-Pflicht, automatische Sperre nach 10 Minuten. Android-Sicherung der App-Daten ist abgeschaltet.</li>
+<li><b>Tablet verloren:</b> in Nextcloud (Einstellungen → Sicherheit) das App-Passwort des Tablets widerrufen bzw. im Microsoft-Konto die Sitzungen abmelden. Bei Verdacht zusätzlich das Büro-Passwort neu vergeben lassen (neues Büro anlegen).</li>
+<li>GitHub hostet nur den Programmcode; es werden keine Büro-Daten an GitHub übertragen.</li></ul>
+</div></body></html>

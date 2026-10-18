@@ -1,0 +1,27 @@
+{
+  "name": "makler-prozess",
+  "version": "2.1.0",
+  "description": "Prozesssteuerung Verkauf & Vermietung mit Zeiterfassung, Übergabeprotokoll und Cloud-Sync",
+  "main": "main.js",
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/share": "^8.0.3",
+    "adm-zip": "^0.5.16",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "electron": "^33.4.11",
+    "playwright": "^1.56.0",
+    "webdav-server": "^2.6.2"
+  },
+  "productName": "Makler-Prozess"
+}

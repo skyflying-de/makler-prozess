@@ -1,0 +1,12 @@
+{
+  "appId": "de.maklerprozess.app",
+  "appName": "Makler-Prozess",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}
