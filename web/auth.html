@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anmeldung – Makler-Prozess</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0;background:#f3f4f6;color:#1b2430}div{background:#fff;padding:24px 28px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.12);max-width:420px;text-align:center}</style>
+</head><body><div id="m">Anmeldung wird abgeschlossen …</div>
+<script>
+// Rückkehr von der Microsoft-Anmeldung: Code an die App übergeben und Fenster schließen
+(function () {
+  var q = new URLSearchParams(location.search), d = { code: q.get("code"), state: q.get("state"), error: q.get("error"), error_description: q.get("error_description") };
+  try { if (window.opener && window.opener !== window) window.opener.postMessage(d, location.origin); } catch (e) {}
+  try { var bc = new BroadcastChannel("mp-auth"); bc.postMessage(d); bc.close(); } catch (e) {}
+  try { localStorage.setItem("mp-auth", JSON.stringify(d)); } catch (e) {}
+  document.getElementById("m").textContent = d.error ? "Anmeldung nicht erfolgreich: " + (d.error_description || d.error) : "Anmeldung abgeschlossen. Dieses Fenster kann geschlossen werden.";
+  setTimeout(function () { window.close(); }, d.error ? 6000 : 600);
+})();
+</script></body></html>
