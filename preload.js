@@ -37,5 +37,7 @@ contextBridge.exposeInMainWorld("api", {
   dropSync: () => call("dropSync"),
   openExternal: u => call("openExternal", u),
   deviceInfo: () => call("deviceInfo"),
-  onBeforeClose: fn => ipcRenderer.on("before-close", fn)
+  onBeforeClose: fn => ipcRenderer.on("before-close", fn),
+  runState: st => ipcRenderer.send("runState", st),
+  onRunCmd: fn => ipcRenderer.on("run-cmd", (e, d) => fn(d))
 });

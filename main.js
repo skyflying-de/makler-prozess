@@ -1,6 +1,6 @@
 // Makler-Prozess – Electron-Hauptprozess
 "use strict";
-const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, safeStorage } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, safeStorage, Tray, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -124,6 +124,11 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^(https?|mailto):/.test(url)) shell.openExternal(url); return { action: "deny" }; });
   win.on("close", e => {
     if (win._forceClose) return;
+    if (!TB.quitting && TB.mine.length && tray) { // laufende Zeit: im Infobereich weiterlaufen
+      e.preventDefault(); win.hide(); TB.hidden = true;
+      if (!TB.balloon && tray.displayBalloon) { try { tray.displayBalloon({ title: "Makler-Prozess läuft weiter", content: "Die Zeiterfassung läuft im Infobereich weiter. Beenden über das Uhr-Symbol → Beenden.", iconType: "info" }); } catch (x) {} TB.balloon = true; }
+      return;
+    }
     e.preventDefault();
     win.webContents.send("before-close");
     setTimeout(() => { win._forceClose = true; win.close(); }, 700);
@@ -131,7 +136,7 @@ function createWindow() {
 }
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }
-app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+app.on("second-instance", () => showWin());
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   loadCfg();
@@ -143,8 +148,70 @@ app.whenReady().then(() => {
     } catch (e) { return new Response("not found", { status: 404 }); }
   });
   createWindow();
+  createTray();
 });
 app.on("window-all-closed", () => app.quit());
+app.on("before-quit", () => { TB.quitting = true; }); // Beenden (Tray, Abmelden, Herunterfahren) schließt wirklich
+
+/* ---------------- Taskleiste & Infobereich (Zeiterfassung) ---------------- */
+let tray = null;
+const TB = { mine: [], all: 0, at: Date.now(), quitting: false, hidden: false, balloon: false, tooltip: "", menu: [], overlay: null, thumbar: [] };
+function bmp(size, fn) { // kleine Symbole ohne Bilddateien zeichnen (BGRA)
+  const b = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const c = fn(x + .5, y + .5, size); if (!c) continue; const i = (y * size + x) * 4; b[i] = c[2]; b[i + 1] = c[1]; b[i + 2] = c[0]; b[i + 3] = c[3] === undefined ? 255 : c[3]; }
+  return nativeImage.createFromBitmap(b, { width: size, height: size });
+}
+const ICONS = {};
+function icons() {
+  if (ICONS.ok) return ICONS;
+  const dot = col => bmp(16, (x, y, s) => { const d = Math.hypot(x - 8, y - 8); return d < 6.2 ? col : d < 7.6 ? [255, 255, 255] : null; });
+  ICONS.run = dot([31, 157, 85]); ICONS.pause = dot([230, 150, 20]);
+  const W = [255, 255, 255];
+  ICONS.tPause = bmp(16, x => (x > 3.5 && x < 6.5) || (x > 9.5 && x < 12.5) ? W : null);
+  ICONS.tPlay = bmp(16, (x, y) => x > 4 && x < 13 && Math.abs(y - 8) < (13 - x) * 0.55 ? W : null);
+  ICONS.tStop = bmp(16, (x, y) => x > 3.5 && x < 12.5 && y > 3.5 && y < 12.5 ? W : null);
+  ICONS.ok = true; return ICONS;
+}
+const hmm = ms => { const m = Math.floor(ms / 60000); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); };
+function showWin() { if (!win) return; if (win.isMinimized()) win.restore(); win.show(); win.focus(); TB.hidden = false; }
+const runCmd = (cmd, id) => { showWin(); if (win) win.webContents.send("run-cmd", { cmd, id }); };
+function createTray() {
+  try {
+    const img = nativeImage.createFromPath(path.join(__dirname, "ui", "icon.png")).resize({ width: process.platform === "win32" ? 16 : 22 });
+    tray = new Tray(img); tray.on("click", showWin); tray.on("double-click", showWin);
+  } catch (e) { tray = null; }
+  updateTaskbar();
+}
+function updateTaskbar() {
+  const el = Date.now() - TB.at, cur = TB.mine.map(m => ({ ...m, ms: m.paused ? m.ms : m.ms + el }));
+  const f = cur[0];
+  TB.tooltip = f ? `Makler-Prozess – ${f.paused ? "⏸" : "▶"} ${hmm(f.ms)} ${f.title} · ${f.sub}${cur.length > 1 ? ` (+${cur.length - 1})` : ""}` : "Makler-Prozess – keine Aktion aktiv";
+  const items = [];
+  cur.slice(0, 3).forEach(m => {
+    items.push({ label: `${m.paused ? "⏸" : "▶"} ${hmm(m.ms)}  ${m.title} · ${m.sub}`, enabled: false });
+    items.push(m.paused ? { label: "    Fortsetzen", click: () => runCmd("resume", m.id) } : { label: "    Pause", click: () => runCmd("pause", m.id) });
+    items.push({ label: "    Stopp …", click: () => runCmd("stop", m.id) });
+  });
+  if (!cur.length) items.push({ label: "Keine Aktion aktiv", enabled: false });
+  items.push({ type: "separator" }, { label: "Aktion erfassen …", click: () => runCmd("quick") }, { label: "Makler-Prozess öffnen", click: showWin }, { type: "separator" },
+    { label: "Beenden", click: () => { TB.quitting = true; if (win) { showWin(); win.close(); } else app.quit(); } });
+  TB.menu = items.map(i => i.label || "—"); TB.items = items;
+  TB.overlay = f ? (cur.some(m => !m.paused) ? "läuft" : "pausiert") : null;
+  TB.thumbar = f ? [f.paused ? "Fortsetzen" : "Pause", "Stopp"] : [];
+  if (tray) { try { tray.setToolTip(TB.tooltip); tray.setContextMenu(Menu.buildFromTemplate(items)); } catch (e) {} }
+  if (win && process.platform === "win32") {
+    try {
+      const I = icons();
+      win.setOverlayIcon(f ? (TB.overlay === "läuft" ? I.run : I.pause) : null, TB.overlay || "");
+      win.setThumbarButtons(f ? [f.paused ? { tooltip: "Fortsetzen", icon: I.tPlay, click: () => runCmd("resume", f.id) } : { tooltip: "Pause", icon: I.tPause, click: () => runCmd("pause", f.id) },
+        { tooltip: "Stopp", icon: I.tStop, click: () => runCmd("stop", f.id) }] : []);
+    } catch (e) {}
+  }
+}
+ipcMain.on("runState", (ev, st) => { TB.mine = (st && st.items) || []; TB.all = (st && st.all) || 0; TB.at = Date.now(); updateTaskbar(); });
+setInterval(() => { if (TB.mine.length) updateTaskbar(); }, 30000);
+global.__mpTaskbar = () => ({ tooltip: TB.tooltip, menu: TB.menu, overlay: TB.overlay, thumbar: TB.thumbar, hidden: TB.hidden, tray: !!tray, visible: win ? win.isVisible() : false });
+global.__mpTrayClick = idx => { const it = TB.items[idx]; if (it && it.click) { it.click(); return true; } return false; }; // nur für Tests
 
 /* ---------------- IPC ---------------- */
 const h = (name, fn) => ipcMain.handle(name, async (ev, ...a) => { try { return { ok: true, data: await fn(...a) }; } catch (e) { return { ok: false, error: e.message }; } });

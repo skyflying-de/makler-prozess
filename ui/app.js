@@ -193,7 +193,7 @@ function modal(title,body,{ok="Speichern",onOk,del,onDel,wide,extra=""}={}){
 }
 const v=(ov,n)=>{const el=ov.querySelector(`[name="${n}"]`);if(!el)return "";if(el.type==="radio")return ov.querySelector(`[name="${n}"]:checked`)?.value;return el.type==="checkbox"?el.checked:el.value};
 function pop(anchor,items){document.querySelectorAll(".pop").forEach(p=>p.remove());const r=anchor.getBoundingClientRect();const p=document.createElement("div");p.className="pop";
-  p.style.left=Math.min(r.left,innerWidth-260)+"px";p.style.top=(r.bottom+6)+"px";p.innerHTML=items.map((it,i)=>`<button data-i="${i}" class="${it.cur?"cur":""}">${esc(it.label)}</button>`).join("");
+  const zf=typeof ZOOMF==="number"&&ZOOMF?ZOOMF:1;p.style.left=Math.min(r.left,innerWidth-260*zf)/zf+"px";p.style.top=(r.bottom+6)/zf+"px";p.innerHTML=items.map((it,i)=>`<button data-i="${i}" class="${it.cur?"cur":""}">${esc(it.label)}</button>`).join("");
   document.body.appendChild(p);p.querySelectorAll("button").forEach(b=>b.onclick=()=>{p.remove();items[b.dataset.i].fn()});
   setTimeout(()=>document.addEventListener("mousedown",function h(e){if(!p.contains(e.target)){p.remove();document.removeEventListener("mousedown",h)}}),0)}
 
@@ -224,7 +224,7 @@ function renderDock(){
     h+=`<div class="run click ${e.pauseAt?"paused":""}" onclick="openRun('${e.id}')" title="Klick öffnet den Fall"><span class="dotlive"></span><div class="tt"><div class="t1">${esc(a.name)} · <span class="muted">${esc(svcBy(e.serviceId).name)}</span></div><div class="t2">${c.no} · ${esc(c.title)}</div></div>
     <span class="clk" data-e="${e.id}">${hm(net(e))}</span>${runCtl(e,{open:false,edit:false})}</div>`});
   h+=`<button class="btn ${VIEW==="laufend"?"pri":""}" onclick="go('laufend')" title="Alle laufenden Aktionen im Büro">${others.length?others.slice(0,4).map(e=>av(e.userId)).join(""):ic("play")} <span class="lbl2">Alle laufenden</span> <span class="nbadge" style="margin-left:2px">${all.length}</span></button>`;
-  h+=`<div class="sp"></div>${typeof syPillHTML==="function"?syPillHTML():""}<button class="btn pri" onclick="quick()">${ic("bolt")}<span class="lbl2">Aktion erfassen</span></button>${MOBILE?`<button class="userchip" onclick="lockNow()" title="Gerät sperren">${av(DB.ui.user)}${ic("lock")}</button>`:""}<button class="ib solid helpbtn" title="Hilfe (F1)" aria-label="Hilfe" onclick="help()">?</button>`;
+  h+=`<div class="sp"></div>${typeof syPillHTML==="function"?syPillHTML():""}<button class="btn pri" onclick="quick()">${ic("bolt")}<span class="lbl2">Aktion erfassen</span></button>${MOBILE?`<button class="userchip" onclick="lockNow()" title="Gerät sperren">${av(DB.ui.user)}${ic("lock")}</button>`:""}<button class="ib solid" title="Anzeigegröße" aria-label="Anzeigegröße" onclick="zoomMenu(this)" style="font-weight:700">Aa</button><button class="ib solid helpbtn" title="Hilfe (F1)" aria-label="Hilfe" onclick="help()">?</button>`;
   $("#dock").innerHTML=h;
 }
 setInterval(()=>{document.querySelectorAll("[data-e]").forEach(el=>{const e=DB.entries.find(x=>x.id===el.dataset.e);if(e)el.textContent=hm(net(e))})},1000);
@@ -382,8 +382,10 @@ function vObjekt(){
   const cs=DB.cases.filter(c=>c.objectId===o.id).sort((a,b)=>b.created-a.created);
   let h=`<div class="top"><button class="ib" onclick="go('objekte')" aria-label="Zurück">${ic("back")}</button><h1>${esc(o.title)}</h1><span class="muted">${o.no}</span><div class="sp"></div>
    <button class="btn" onclick="startFromObject('${o.id}')">${ic("play")}Aktion starten</button><button class="btn" onclick="newCase('rent','${o.id}')">${ic("plus")}Vermietung</button><button class="btn pri" onclick="newCase('sale','${o.id}')">${ic("plus")}Verkauf</button></div>
-   <div class="tabs">${[["daten","Objektdaten"],["faelle",`Fälle (${cs.length})`]].map(([k,l])=>`<button class="${OTAB===k?"on":""}" onclick="OTAB='${k}';render()">${l}</button>`).join("")}</div>`;
+   ${typeof hoLastBar==="function"?hoLastBar(o):""}
+   <div class="tabs">${[["daten","Objektdaten"],["faelle",`Fälle (${cs.length})`],["uebergabe","Übergabe"]].map(([k,l])=>`<button class="${OTAB===k?"on":""}" onclick="OTAB='${k}';render()">${l}</button>`).join("")}</div>`;
   if(OTAB==="daten")h+=dataForm(o,"object");
+  else if(OTAB==="uebergabe")h+=hoObjTab(o);
   else h+=`<div class="card">${cs.length?`<table><tr><th>Nr.</th><th>Art</th><th>Fall</th><th>Phase</th><th>Abrechnung</th><th class="r">Zeit</th></tr>${cs.map(c=>`<tr class="click" onclick="TAB='akt';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span></td><td><b>${esc(c.title)}</b><div class="hint">${esc(c.client)}</div></td><td>${STAGES[c.stage]}</td><td class="muted">${BILL[c.billing].split(" (")[0]}</td><td class="r">${hm(sumNet(caseEntries(c.id)))}</td></tr>`).join("")}</table>`:'<div class="empty">Noch keine Fälle zu diesem Objekt.</div>'}</div>`;
   return h;
 }
@@ -711,7 +713,7 @@ async function uploadSigned(pid,inp){const p=DB.protocols.find(x=>x.id===pid),c=
   const f=DB.settings.fields[c.type].find(x=>x.label==="Übergabeprotokoll");
   try{const refs=await api.importFiles({paths,rel:folderRel(c,c.type,f||{label:"Übergabeprotokoll"})});
     p.signed.push(...refs);p.status="signed";p.signedAt=Date.now();cloudLock(p.id);if(f)c.files[f.id]=[...(c.files[f.id]||[]),...refs];
-    save();render();toast("Unterschriebenes Protokoll abgelegt")}catch(e){toast("Ablage fehlgeschlagen: "+e.message)}}
+    save();render();toast("Unterschriebenes Protokoll abgelegt");setTimeout(()=>hoAfterSign(p.id),400)}catch(e){toast("Ablage fehlgeschlagen: "+e.message)}}
 function printProto(pid){const p=DB.protocols.find(x=>x.id===pid);if(p.status==="draft"){p.status="ready";save();render()}printDoc(buildProtoDoc(p),`${p.no}_${p.kind}.pdf`)}
 function addRoom(pid,sid){const inp=document.getElementById("nr_"+sid);const n=inp.value.trim();if(!n)return;setProto(pid,p=>p.sections.find(s=>s.id===sid).rooms.push({id:uid(),name:n,values:{}}))}
 function rmRoom(pid,sid,rid){if(!confirm("Raum aus diesem Protokoll entfernen?"))return;setProto(pid,p=>{const s=p.sections.find(x=>x.id===sid);s.rooms=s.rooms.filter(r=>r.id!==rid)})}
@@ -721,7 +723,7 @@ document.addEventListener("change",e=>{const d=e.target.dataset;if(!d.pp)return;
   if(d.k==="v")tg[d.i]=val;else tg[d.i]={...(tg[d.i]||{}),[d.k]:val};
   if(d.k==="z"){const tr=e.target.closest("tr");if(tr)tr.classList.toggle("defect",isDefect(tg[d.i]))}
   save();const st=protoStats(p),el=document.getElementById("pstat");if(el)el.innerHTML=statHTML(st)});
-const statHTML=st=>`${st.done}/${st.tot} Punkte erfasst${st.def?` · <b style="color:var(--bad)">${st.def} Mängel</b>`:""}<div class="progress" style="width:160px"><i style="width:${st.pc}%"></i></div>`;
+const statHTML=st=>`${st.done}/${st.tot} Punkte erfasst${st.def?` · <b style="color:var(--bad)">${st.def===1?"1 Mangel":st.def+" Mängel"}</b>`:""}<div class="progress" style="width:160px"><i style="width:${st.pc}%"></i></div>`;
 function protoView(c){
   const ps=DB.protocols.filter(p=>p.caseId===c.id).sort((a,b)=>a.created-b.created);
   const p=ps.find(x=>x.id===PSEL)||ps[ps.length-1];
@@ -746,10 +748,12 @@ function protoView(c){
    ${p.sigs&&p.sigs.length?`<div class="hint" style="margin-top:10px">${ic("edit",'style="width:14px;vertical-align:-2px"')} Digital unterschrieben ${dt(p.signedAt)} ${tm(p.signedAt)}: ${p.sigs.map(x=>`<b>${esc(x.name)}</b> (${esc(x.label)})`).join(", ")}</div>`:""}
    ${p.sent?`<div class="hint" style="margin-top:6px;color:var(--ok)">${ic("check",'style="width:14px;vertical-align:-2px"')} Per E-Mail an <b>${esc(p.sent.to)}</b> versendet am ${dt(p.sent.at)} ${tm(p.sent.at)} (${esc(userBy(p.sent.by).short)})</div>`:p.sendDeclined?`<div class="hint" style="margin-top:6px">Kein E-Mail-Versand an den Mieter (${dt(p.sendDeclined)}).</div>`:""}
    ${p.signed.length?`<div class="hint" style="margin-top:10px">${ic("folder",'style="width:14px;vertical-align:-2px"')} Abgelegt ${dt(p.signedAt)}: ${p.signed.map(n=>fileChip(n)).join(" ")}${MOBILE?"":` <button class="btn sm" data-rel="${esc(folderRel(c,c.type,{label:"Übergabeprotokoll"}))}" onclick="openRel(this.dataset.rel)">${ic("folder")}Ordner</button>`}</div>`:""}
+   ${p.base?`<div class="hint" style="margin-top:8px">Vorbelegt aus ${esc(p.base.no)}</div>`:""}
+   ${hoPending(p)?`<div class="banner" style="margin:12px 0 0;background:var(--warn-soft);color:var(--warn)">${ic("bell",'style="width:16px"')}Angaben weichen von den Objekt-Stammdaten ab.<span class="sp"></span><button class="btn sm" onclick="hoAfterSign('${p.id}')">Prüfen &amp; übernehmen</button></div>`:""}
    ${lock?`<div class="banner" style="margin:12px 0 0">${ic("lock",'style="width:16px"')}Unterschrieben – das Protokoll ist gesperrt. Änderungen nur nach Aufheben der Sperre (Admin) oder über ein neues Protokoll.</div>`:""}</div>`;
   const zSel=(p,s,i,v,r)=>`<select ${dis} data-pp="${p.id}" data-s="${s.id}" ${r?`data-r="${r}"`:""} data-i="${i.id}" data-k="z"><option value=""></option>${p.states.map(o=>`<option ${v&&v.z===o?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
   const note=(p,s,i,v,r,k="note",ph="Bemerkung")=>`<input ${dis} data-pp="${p.id}" data-s="${s.id}" ${r?`data-r="${r}"`:""} data-i="${i.id}" data-k="${k}" value="${esc(v&&v[k]||"")}" placeholder="${ph}">`;
-  const chk=(s,vals,r)=>`<table class="ptab"><tr><th style="width:30%">Prüfpunkt</th><th style="width:180px">Zustand</th><th>Bemerkung / Mangel</th><th style="width:150px">Fotos</th></tr>${s.items.map(i=>{const val=vals[i.id];return `<tr class="${isDefect(val)?"defect":""}"><td>${esc(i.label)}</td><td>${zSel(p,s,i,val,r)}</td><td>${note(p,s,i,val,r)}</td><td>${photoCell(p,s,i,val,r,lock)}</td></tr>`}).join("")}</table>`;
+  const chk=(s,vals,r)=>`<table class="ptab"><tr><th style="width:30%">Prüfpunkt</th><th style="width:180px">Zustand</th><th>Bemerkung / Mangel</th><th style="width:150px">Fotos</th></tr>${s.items.map(i=>{const val=vals[i.id];return `<tr class="${isDefect(val)?"defect":""}"><td>${esc(i.label)}${hoItemHint(val)}</td><td>${zSel(p,s,i,val,r)}</td><td>${note(p,s,i,val,r)}</td><td>${photoCell(p,s,i,val,r,lock)}</td></tr>`}).join("")}</table>`;
   p.sections.forEach(s=>{
     h+=`<div class="card"><h2>${esc(s.title)}<span class="sp"></span>${!lock&&s.type==="checklist"?`<button class="btn sm" onclick="allOk('${p.id}','${s.id}')">${ic("check")}Rest „${esc(p.states[0])}“</button>`:""}</h2>`;
     if(s.type==="fields")h+=`<div class="form">${s.items.map(i=>{const val=s.values[i.id]??"",at=`${dis} data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="v"`;
@@ -758,7 +762,7 @@ function protoView(c){
       const op=!lock&&f<s.items.length&&!s._o;if(op)s._o=1;return `<details class="room" ${op?"open":""}><summary><b>${esc(r.name)}</b><span class="hint">${f}/${s.items.length}${d?` · <span style="color:var(--bad)">${d} Mängel</span>`:""}</span><span class="sp"></span>${!lock?`<button class="btn sm" onclick="event.preventDefault();allOk('${p.id}','${s.id}','${r.id}')">${ic("check")}Rest „${esc(p.states[0])}“</button><button class="ib" aria-label="Raum entfernen" onclick="event.preventDefault();rmRoom('${p.id}','${s.id}','${r.id}')">${ic("x")}</button>`:""}</summary>${chk(s,r.values,r.id)}</details>`}).join("");
       delete s._o;if(!lock)h+=`<div style="display:flex;gap:8px;margin-top:10px;max-width:420px"><input id="nr_${s.id}" placeholder="Weiteren Raum hinzufügen, z. B. Gäste-WC"><button class="btn" onclick="addRoom('${p.id}','${s.id}')">${ic("plus")}Raum</button></div>`}
     else if(s.type==="checklist")h+=chk(s,s.values);
-    else if(s.type==="meters")h+=`<table class="ptab"><tr><th style="width:30%">Zähler</th><th>Zählernummer</th><th>Stand</th><th style="width:150px">Fotos</th></tr>${s.items.map(i=>`<tr><td>${esc(i.label)}</td><td>${note(p,s,i,s.values[i.id],null,"nr","Zählernummer")}</td><td>${note(p,s,i,s.values[i.id],null,"stand","Zählerstand")}</td><td>${photoCell(p,s,i,s.values[i.id],null,lock)}</td></tr>`).join("")}</table>`;
+    else if(s.type==="meters")h+=`<table class="ptab"><tr><th style="width:30%">Zähler</th><th>Zählernummer</th><th>Stand</th><th style="width:150px">Fotos</th></tr>${s.items.map(i=>`<tr><td>${esc(i.label)}</td><td>${note(p,s,i,s.values[i.id],null,"nr","Zählernummer")}</td><td>${note(p,s,i,s.values[i.id],null,"stand","Zählerstand")}${hoPrevHint(s.values[i.id])}</td><td>${photoCell(p,s,i,s.values[i.id],null,lock)}</td></tr>`).join("")}</table>`;
     else if(s.type==="keys")h+=`<table class="ptab"><tr><th style="width:34%">Schlüssel</th><th style="width:110px">Anzahl</th><th>Bemerkung / Schlüsselnummer</th></tr>${s.items.map(i=>`<tr><td>${esc(i.label)}</td><td>${note(p,s,i,s.values[i.id],null,"n","0")}</td><td>${note(p,s,i,s.values[i.id],null,"note","")}</td></tr>`).join("")}</table>`;
     h+=`</div>`;
   });
@@ -805,7 +809,7 @@ function buildProtoDoc(p){
   const fv=l=>fieldVal(c,l)||"";
   const show=v=>!D.onlyFilled||(v&&(v.z||v.note));
   let body=D.intro?`<p>${nl(D.intro)}</p>`:"";const defects=[],photos=[];
-  const chk=(s,vals,room)=>{const rows=s.items.filter(i=>show(vals[i.id]));if(!rows.length)return"";rows.forEach(i=>{if(isDefect(vals[i.id]))defects.push([room||s.title,i.label,vals[i.id].note||""])});
+  const chk=(s,vals,room)=>{const rows=s.items.filter(i=>show(vals[i.id]));if(!rows.length)return"";rows.forEach(i=>{if(isDefect(vals[i.id]))defects.push([room||s.title,i.label,(vals[i.id].note||"")+(vals[i.id].from?` (seit ${vals[i.id].from})`:"")])});
     const hasPh=D.showPhotos&&rows.some(i=>vals[i.id]&&vals[i.id].photos&&vals[i.id].photos.length);
     rows.forEach(i=>{const v=vals[i.id];if(D.photoAppendix&&v&&v.photos)v.photos.forEach((ph,k)=>photos.push([`${room||s.title} · ${i.label}`,ph,v.z||"",photos.length+1]))});
     return `<table class="grid"><tr><th style="width:${hasPh?30:36}%">Prüfpunkt</th><th style="width:20%">Zustand</th><th>Bemerkung</th>${hasPh?'<th style="width:150px">Fotos</th>':""}</tr>${rows.map(i=>{const v=vals[i.id]||{};return `<tr${isDefect(v)?' class="def"':""}><td>${esc(i.label)}</td><td>${esc(v.z||"")}</td><td>${esc(v.note||"")}</td>${hasPh?`<td class="thumbs">${(v.photos||[]).map(ph=>`<img src="${psrc(ph)}" alt="">`).join("")}</td>`:""}</tr>`}).join("")}</table>`};
@@ -818,7 +822,8 @@ function buildProtoDoc(p){
       body+=`<h2>${esc(s.title)}</h2><table class="grid"><tr><th style="width:30%">Zähler</th><th>Zählernummer</th><th>Stand</th>${hasPh?'<th style="width:150px">Fotos</th>':""}</tr>${s.items.map(i=>{const v=s.values[i.id]||{};return `<tr><td>${esc(i.label)}</td><td>${esc(v.nr||"")}</td><td>${esc(v.stand||"")}</td>${hasPh?`<td class="thumbs">${(v.photos||[]).map(ph=>`<img src="${psrc(ph)}" alt="">`).join("")}</td>`:""}</tr>`}).join("")}</table>`}
     else if(s.type==="keys")body+=`<h2>${esc(s.title)}</h2><table class="grid"><tr><th style="width:36%">Schlüssel</th><th style="width:14%" class="r">Anzahl</th><th>Bemerkung</th></tr>${s.items.map(i=>{const v=s.values[i.id]||{};return `<tr><td>${esc(i.label)}</td><td class="r">${esc(v.n||"")}</td><td>${esc(v.note||"")}</td></tr>`}).join("")}</table>`;
   });
-  if(D.showDefects)body+=`<h2>Mängelübersicht</h2>${defects.length?`<table class="grid"><tr><th>Bereich</th><th>Prüfpunkt</th><th>Beschreibung</th></tr>${defects.map(d=>`<tr class="def"><td>${esc(d[0])}</td><td>${esc(d[1])}</td><td>${esc(d[2])}</td></tr>`).join("")}</table>`:"<p>Keine Mängel festgestellt.</p>"}`;
+  const fixedL=typeof hoFixed==="function"?hoFixed(p):[];
+  if(D.showDefects)body+=`<h2>Mängelübersicht</h2>${defects.length?`<table class="grid"><tr><th>Bereich</th><th>Prüfpunkt</th><th>Beschreibung</th></tr>${defects.map(d=>`<tr class="def"><td>${esc(d[0])}</td><td>${esc(d[1])}</td><td>${esc(d[2])}</td></tr>`).join("")}</table>`:"<p>Keine Mängel festgestellt.</p>"}${fixedL.length?`<p style="margin-top:6px"><b>Seit dem vorherigen Protokoll behoben:</b> ${fixedL.map(f=>esc(f.area+" · "+f.i.label+(f.v.fixedNote?" ("+f.v.fixedNote+")":""))).join("; ")}</p>`:""}`;
   if(D.legal)body+=`<p class="legal">${nl(D.legal)}</p>`;
   const sigBlock=p.sigs&&p.sigs.length?p.sigs.map(x=>({...x,place:p.place})):D.sigLabels.split("\n").map(s=>s.trim()).filter(Boolean);
   if(D.photoAppendix&&photos.length){const html=docShell(p.kind==="Auszug"?D.titleOut:D.titleIn,[["Protokoll-Nr.",p.no],["Übergabedatum",dt(p.date)],["Objekt",o.title],["Adresse",objVal(o,"Adresse")],["Vermieter",fv("Name Vermieter")],["Mieter",fv("Neuer Mieter")],["Vorgang",c.no],["Lage / Etage",objVal(o,"Etage")]],body,sigBlock);
@@ -952,8 +957,8 @@ function askSend(pid){
     if(!v(ov,"ok"))throw new Error("Bitte das Einverständnis des Mieters bestätigen.");
     if(mf)c.data[mf.id]=m;p.sent={to:m,at:Date.now(),by:DB.ui.user};const D=DB.settings.design,o=objBy(c.objectId);
     api.mail({to:m,subject:`${p.kind==="Auszug"?D.docs.proto.titleOut:D.docs.proto.titleIn} – ${o.title}`,body:`Guten Tag,\n\nanbei erhalten Sie das unterschriebene Übergabeprotokoll ${p.no} zum Objekt ${o.title} (${objVal(o,"Adresse")||""}) vom ${dt(p.date)}.\n\nMit freundlichen Grüßen\n${ME().name}\n${D.company}`,attachRel:p.pdf?p.pdf.p:null}).catch(e=>toast(e.message));
-    toast("E-Mail an "+m+" vorbereitet")}});
-  ov.querySelector('[data-x=no]').onclick=()=>{ov.close();p.sendDeclined=Date.now();save();render();toast("Kein Versand – Protokoll ist abgelegt")};
+    toast("E-Mail an "+m+" vorbereitet");setTimeout(()=>hoAfterSign(pid),400)}});
+  ov.querySelector('[data-x=no]').onclick=()=>{ov.close();p.sendDeclined=Date.now();save();render();toast("Kein Versand – Protokoll ist abgelegt");setTimeout(()=>hoAfterSign(pid),400)};
 }
 
 /* ================= v0.4: Design-Import / -Export ================= */
@@ -1076,12 +1081,12 @@ function drawCap(){
      <div class="capfinal"><button class="capbig ghost" onclick="printDoc(buildProtoDoc(pById('${p.id}')))">${ic("print",'style="width:22px"')}Druckvorschau</button><button class="capbig pri" onclick="const id=CAP.pid;closeCap();chooseSign(id)">${ic("edit",'style="width:22px"')}Fertig → Unterschrift</button></div>`;
   }else if(s.type==="rooms"||s.type==="checklist"){
     body=`<div class="capbar"><button class="capbtn ok" onclick="capAllOk('${s.id}','${rid}')">${ic("check",'style="width:20px"')}Alle übrigen „${esc(p.states[0])}“</button>${s.type==="rooms"?`<button class="capbtn" onclick="capRoomAdd('${s.id}')">${ic("plus",'style="width:20px"')}Raum hinzufügen</button>`:""}</div>`+
-    s.items.map(i=>{const v=vals[i.id]||{};return `<div class="ci ${isDefect(v)?"def":""} ${v.z?"done":""}"><div class="cil">${esc(i.label)}</div>
+    s.items.map(i=>{const v=vals[i.id]||{};return `<div class="ci ${isDefect(v)?"def":""} ${v.z?"done":""}"><div class="cil">${esc(i.label)}${hoItemHint(v)}</div>
       <div class="zb">${p.states.map((x,k)=>`<button class="z ${v.z===x?"on":""} ${/mängel|defekt|beschädigt/i.test(x)?"bad":k===0?"good":""}" onclick="capZ('${s.id}','${rid}','${i.id}',${k})">${esc(x)}</button>`).join("")}</div>
       <div class="crow"><input class="cin" data-pp="${p.id}" data-s="${s.id}" ${rid?`data-r="${rid}"`:""} data-i="${i.id}" data-k="note" value="${esc(v.note||"")}" placeholder="${isDefect(v)?"Mangel beschreiben …":"Bemerkung (optional)"}">${photoCell(p,s,i,v,rid,false,true)}</div></div>`}).join("");
   }else if(s.type==="meters"){
     body=s.items.map(i=>{const v=vals[i.id]||{};return `<div class="ci ${v.stand?"done":""}"><div class="cil">${esc(i.label)}</div>
-      <div class="crow two2"><label>Zählernummer<input class="cin" data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="nr" value="${esc(v.nr||"")}"></label><label>Zählerstand<input class="cin" inputmode="decimal" data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="stand" value="${esc(v.stand||"")}"></label></div>
+      <div class="crow two2"><label>Zählernummer<input class="cin" data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="nr" value="${esc(v.nr||"")}"></label><label>Zählerstand<input class="cin" inputmode="decimal" data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="stand" value="${esc(v.stand||"")}">${hoPrevHint(v)}</label></div>
       <div class="crow">${photoCell(p,s,i,v,"",false,true)}<span class="hint">Foto vom Zähler als Nachweis</span></div></div>`}).join("");
   }else if(s.type==="keys"){
     body=s.items.map(i=>{const v=vals[i.id]||{},n=parseInt(v.n)||0;return `<div class="ci ${v.n!==undefined&&v.n!==""?"done":""}"><div class="crow"><div class="cil" style="flex:1">${esc(i.label)}</div>
@@ -1094,7 +1099,7 @@ function drawCap(){
         :`<input class="cin" ${at} type="${i.ftype==="date"?"date":"text"}" value="${esc(v)}">`}</div>`}).join("");
   }
   el.innerHTML=`<div class="caphead"><button class="capx" onclick="closeCap()" aria-label="Schließen">${ic("x",'style="width:24px;height:24px"')}</button>
-    <div class="capt"><b>${esc(p.kind)}sprotokoll · ${esc(p.no)}</b><span>${esc(c.title)}</span></div><div class="capprog"><span>${st.done}/${st.tot}${st.def?` · <b style="color:var(--bad)">${st.def} Mängel</b>`:""}</span><div class="progress"><i style="width:${st.pc}%"></i></div></div>
+    <div class="capt"><b>${esc(p.kind)}sprotokoll · ${esc(p.no)}</b><span>${esc(c.title)}</span></div><div class="capprog"><span>${st.done}/${st.tot}${st.def?` · <b style="color:var(--bad)">${st.def===1?"1 Mangel":st.def+" Mängel"}</b>`:""}</span><div class="progress"><i style="width:${st.pc}%"></i></div></div>
     <button class="capbtn" onclick="capFull()">⛶ Vollbild</button></div>
    <div class="capbody"><nav class="capnav">${pages.map((x,k)=>{const ps=pageStat(x);return `<button class="${k===CAP.idx?"on":""} ${ps&&ps.d===ps.t?"ok":""}" onclick="capGo(${k})"><span>${esc(x.title)}<small>${esc(x.sub)}</small></span>${ps?`<em>${ps.d===ps.t?"✓":ps.d+"/"+ps.t}${ps.def?` <b>!</b>`:""}</em>`:`<em>›</em>`}</button>`}).join("")}</nav>
     <div class="capmain"><div class="capttl"><h2>${esc(pg.title)}</h2><span>${esc(pg.sub)}</span></div>${body}</div></div>
@@ -1128,14 +1133,45 @@ function printDoc(html,name="Dokument.pdf"){
 
 /* ================= Render ================= */
 function render(){
-  renderNav();renderDock();
+  applyZoom();renderNav();renderDock();
   const f={laufend:vLaufend,start:vStart,objekte:vObjekte,objekt:vObjekt,faelle:vFaelle,fall:vFall,kalender:vKalender,zeiten:vZeiten,auswertung:MOBILE?vStart:vAuswertung,einstellungen:MOBILE?vGeraet:vEinst}[VIEW];
   $("main").innerHTML=f();
   if(VIEW==="einstellungen"&&SETTAB==="design")requestAnimationFrame(drawPreview);
   if(VIEW==="einstellungen"&&SETTAB!=="daten")BACKUPS=null;
-  document.title=`Makler-Prozess ${ENV?ENV.version:""}${running().length?` · ${running().length} laufend`:""}`;
+  fitTables();
+  taskbarSync();
   if(FLASH&&VIEW==="fall"){const el=document.querySelector(`[data-eid="${FLASH}"]`);if(el)el.scrollIntoView({block:"center"});setTimeout(()=>{FLASH=null;document.querySelectorAll(".flash").forEach(x=>x.classList.remove("flash"))},1800)}
 }
+/* ================= Anzeigegröße: automatisch oder je Gerät Kompakt / Normal / Groß ================= */
+const ZOOMS={auto:["Automatisch",0],s:["Kompakt",.85],m:["Normal",1],l:["Groß",1.15]};
+let ZOOMF=1;
+function autoZoom(){const w=innerWidth,h=innerHeight;if(MOBILE)return w<700||h<560?.88:1;return w<1150||h<690?.8:w<1340||h<780?.9:1}
+function applyZoom(){const z=(DB&&DB.ui&&DB.ui.zoom)||"auto",f=z==="auto"?autoZoom():ZOOMS[z][1];if(f===ZOOMF&&document.documentElement.dataset.zoom===z)return;ZOOMF=f;document.documentElement.style.zoom=f===1?"":String(f);document.documentElement.dataset.zoom=z}
+function setZoom(z){DB.ui.zoom=z;save();applyZoom();render();toast("Anzeige: "+ZOOMS[z][0]+(z==="auto"?` (${Math.round(autoZoom()*100)} %)`:""))}
+function zoomMenu(btn){pop(btn,Object.entries(ZOOMS).map(([k,[l,f]])=>({label:`${((DB.ui.zoom||"auto")===k)?"✓ ":""}${l}${k==="auto"?` (jetzt ${Math.round(autoZoom()*100)} %)`:` (${Math.round(f*100)} %)`}`,fn:()=>setZoom(k)})))}
+let zoomT=0;window.addEventListener("resize",()=>{clearTimeout(zoomT);zoomT=setTimeout(()=>{applyZoom();fitTables()},150)});
+/* Tabellen, die nicht in die Breite passen, werden als Karten untereinander dargestellt (kein seitliches Schieben) */
+function fitTables(root){
+  const r=root||document.getElementById("main");if(!r)return;
+  r.querySelectorAll("table").forEach(t=>{if(t.closest(".doc,.pvov,.mini"))return;
+    const hr=[...t.rows].find(x=>x.querySelector("th"));
+    if(hr&&!t.dataset.lab){const heads=[...hr.cells].map(c=>c.textContent.trim());[...t.rows].forEach(row=>{if(row===hr)return;let k=0;[...row.cells].forEach(c=>{if(!c.dataset.label)c.dataset.label=heads[k]||"";k+=c.colSpan||1})});t.dataset.lab=1;if(hr)hr.classList.add("thr")}
+    t.classList.remove("stack");const host=t.parentElement;if(t.scrollWidth>host.clientWidth+2||t.getBoundingClientRect().right>r.getBoundingClientRect().right+2)t.classList.add("stack")});
+}
+document.addEventListener("keydown",e=>{if(MOBILE||!DB||!(e.ctrlKey||e.metaKey))return;const order=["s","m","l"],cur=DB.ui.zoom&&DB.ui.zoom!=="auto"?DB.ui.zoom:(ZOOMF<.95?"s":ZOOMF>1.05?"l":"m"),i=order.indexOf(cur);
+  if(e.key==="+"||e.key==="="){e.preventDefault();setZoom(order[Math.min(2,i+1)])}else if(e.key==="-"){e.preventDefault();setZoom(order[Math.max(0,i-1)])}else if(e.key==="0"){e.preventDefault();setZoom("auto")}});
+
+/* ================= Taskleiste: Laufzeit im Titel, Infobereich, Badge (Windows) ================= */
+function taskbarSync(){
+  if(!DB)return;const mine=running().filter(e=>e.userId===DB.ui.user),f=mine[0];
+  const lbl=e=>{const c=caseBy(e.caseId),a=c?actBy(c.type,e.actionId):null;return {title:a?a.name:"Aktion",sub:c?c.no:""}};
+  document.title=f?`${f.pauseAt?"⏸":"▶"} ${hm(net(f))} ${lbl(f).title} · ${lbl(f).sub}${mine.length>1?` (+${mine.length-1})`:""} – Makler-Prozess`:`Makler-Prozess ${ENV?ENV.version:""}${running().length?` · ${running().length} laufend`:""}`;
+  if(!MOBILE&&api.runState)api.runState({items:mine.map(e=>({id:e.id,...lbl(e),ms:net(e),paused:!!e.pauseAt})),all:running().length});
+}
+setInterval(()=>{if(DB)taskbarSync()},30000);
+if(window.api&&api.onRunCmd)api.onRunCmd(d=>{if(!DB)return;
+  if(d.cmd==="pause")pauseE(d.id);else if(d.cmd==="resume")resumeE(d.id);else if(d.cmd==="stop")stopE(d.id);else if(d.cmd==="quick")quick();});
+
 /* ================= App: Dateien & Pfade ================= */
 const psrc=d=>!d?"":String(d).startsWith("data:")?d:MOBILE?PLATFORM.fileSrc(d):"mpfile://f/"+String(d).split("/").map(encodeURIComponent).join("/");
 const fName=x=>typeof x==="string"?x:x.n;
@@ -1305,7 +1341,7 @@ function vInfo(){
 function helpTopic(){if(CAP)return "erfassung";if(VIEW==="fall")return TAB==="proto"?"protokoll":TAB==="abr"?"abrechnung":"fall";
   if(VIEW==="einstellungen"&&MOBILE)return "tablet";
   if(VIEW==="einstellungen")return SETTAB==="daten"?(ENV&&ENV.cfg.mode==="cloud"?"cloud":"sicherung"):SETTAB==="design"?"design":SETTAB==="proto"?"vorlage":"einstellungen";
-  return {start:"start",laufend:"laufend",objekte:"objekte",objekt:"objekte",faelle:"faelle",kalender:"termine",zeiten:"zeiten",auswertung:"auswertung"}[VIEW]||"erste-schritte"}
+  return {start:"start",laufend:"laufend",objekte:"objekte",objekt:OTAB==="uebergabe"?"uebergabe":"objekte",faelle:"faelle",kalender:"termine",zeiten:"zeiten",auswertung:"auswertung"}[VIEW]||"erste-schritte"}
 function help(topic){
   document.querySelectorAll(".helpov").forEach(x=>x.remove());
   let cur=topic||helpTopic();

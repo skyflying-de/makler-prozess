@@ -1,5 +1,20 @@
 # Changelog – Makler-Prozess
 
+## 2.2.0 – 2026-10-21
+Übergabe-Stammdaten am Objekt, vorbelegte Protokolle, Protokollverlauf; Darstellung für jedes Gerät; Windows-Taskleiste.
+
+- **Objekt → Reiter „Übergabe“:** Räume, Zähler (Art, Nummer, Lage, letzter Stand), Schlüssel (Anzahl) und Einbauküche/Geräte anlegen, ändern, löschen, sortieren
+- Bestehende Objekte: Stammdaten einmalig aus dem jüngsten Protokoll übernommen (sonst aus der Vorlage); gleiche Kennungen auf allen Geräten, daher keine Dubletten im Cloud-Abgleich
+- **Neues Protokoll** vorbelegt aus dem Objekt; **Basis** wählbar (letztes, früheres oder leer); Übernahme per Mehrfachauswahl: Mängel mit/ohne Fotos, Zählernummern, Zählerstände als Vorwert, Schlüsselanzahl, Abschlussanmerkungen; „Als Basis“ direkt aus dem Verlauf
+- **Mängelprüfung** beim Anlegen: je Mangel „übernehmen“ oder „behoben“; Kennzeichnung im Protokoll und im Ausdruck („seit UP-…“, „Seit dem vorherigen Protokoll behoben“); geerbte Fotos werden beim Entfernen nicht gelöscht
+- **Nach der Unterschrift:** Abweichungen zu den Stammdaten (Zählernummer, Zählerstand, Schlüssel, Räume) anzeigen und per Haken ins Objekt übernehmen
+- **Protokollverlauf** als Zeitleiste mit Kurzübersicht (Status, Mieter, Mängel, behoben, Fotos, Zähler, Schlüssel, Nacharbeiten), Details mit Mangelfotos und Verbrauch seit dem vorherigen Protokoll; Hinweisleiste „Letzte Übergabe“ im Objektkopf; 4 Kennzahlen
+- **Anzeigegröße:** Automatisch nach Bildschirm/Fenster, je Gerät Kompakt / Normal / Groß (Knopf „Aa“), am PC Strg + / − / 0
+- **Hoch- und Querformat:** Tabellen, die nicht passen, werden als Karten untereinander dargestellt; größere Bedienelemente; Druckvorschau-Leiste bricht um; Layout-Prüfung aller Seiten und Dialoge in 8 Formaten
+- **Windows-Taskleiste:** Laufzeit im Fenstertitel, Uhr-Symbol im Infobereich (Tooltip, Pause/Fortsetzen/Stopp, Aktion erfassen, Öffnen, Beenden), grüner/gelber Punkt am Programmsymbol, Pause/Stopp in der Vorschau; Schließen bei laufender Zeit → läuft im Infobereich weiter
+- Hilfe-Themen „Übergabe am Objekt“ und „Anzeigegröße & Bildschirm“, Anleitung erweitert
+- Tests: neuer E2E-Test Übergabe/Taskleiste (44 Prüfungen), Layout-Prüfung (226 Ansichten), bisherige Tests unverändert grün
+
 ## 2.1.0 – 2026-10-10
 Tablet: Makler-Prozess läuft als **Android-App (APK)** und als **Browser-App (PWA)** – gleicher Code, gleiches Büro, offline-fähig.
 

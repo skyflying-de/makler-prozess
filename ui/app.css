@@ -432,3 +432,51 @@ body.mobile .login{z-index:120}
 }
 body.mobile .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
 @media (orientation:landscape) and (min-width:901px){body.mobile .toast{bottom:28px}}
+
+/* ================= 2.2: Übergabe am Objekt ================= */
+.holast{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 14px;border-radius:10px;font-size:13.5px;margin:-4px 0 14px;background:var(--ok-soft);color:var(--ok)}
+.holast.warn{background:var(--warn-soft);color:var(--warn)}.holast.draft{background:var(--panel2);color:var(--mute);border:1px solid var(--line)}
+.hosum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.hosum .card{margin:0;display:flex;flex-direction:column;gap:2px}
+.hosum .k{font-size:12.5px;color:var(--mute)}.hosum b{font-size:21px}
+.hotl{position:relative;padding-left:22px}.hotl:before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.hoi{position:relative;border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:10px;background:var(--panel)}
+.hoi:before{content:"";position:absolute;left:-19px;top:17px;width:12px;height:12px;border-radius:50%;background:var(--mute);border:2px solid var(--panel)}
+.hoi.signed:before{background:var(--ok)}.hoi.ready:before{background:var(--warn)}
+.hoh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.hoh h3{margin:0;font-size:14.5px}.hoacts{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.hochips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.hochips .chip{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.hochips .chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}.hochips .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.hochips .chip.lnk{all:unset;cursor:pointer;font-size:12px;padding:3px 9px;color:var(--acc)}
+.hodet{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;font-size:13px}
+.hom{display:flex;gap:10px;align-items:center;padding:5px 0}.hom img{width:46px;height:36px;object-fit:cover;border-radius:6px;cursor:zoom-in;flex:none}
+.hodefn{width:46px;height:36px;border-radius:6px;display:grid;place-items:center;background:var(--bad-soft);color:var(--bad);font-weight:700;flex:none}.hodefn.ok{background:var(--ok-soft);color:var(--ok)}
+table.mini{width:100%;border-collapse:collapse;font-size:13px}table.mini td,table.mini th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;background:none}table.mini th{color:var(--mute);font-weight:600}
+.hosec{margin-bottom:12px}.hosh{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:6px}
+.horooms{display:flex;gap:6px;flex-wrap:wrap}.horooms span{padding:5px 10px;border:1px solid var(--line2);border-radius:8px;font-size:13px;background:var(--panel)}
+.hogrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.hoedit{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.hor{display:flex;gap:6px;align-items:center}.hor input{flex:1;min-width:0}
+.hodlg{width:min(680px,100%)}.hobase,.hoopts{display:flex;flex-direction:column;gap:8px;margin:6px 0 14px}.hobase label,.hoopt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hoopt.dis{opacity:.5}.hoopt.sub{padding-left:26px;gap:14px}.hoopt.sub label{display:flex;gap:6px;align-items:center}.hobase select{width:auto;max-width:100%}
+.hodefs{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto}.hodef{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.hodefi{display:flex;gap:10px;align-items:center;min-width:0;flex:1}.hodefi img{width:52px;height:40px;object-fit:cover;border-radius:6px;flex:none}
+.hodiff{display:flex;flex-direction:column;gap:8px}.hodiff label{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px}.hodiff label>span{display:flex;flex-direction:column}
+.hohint{font-size:11.5px;color:var(--mute);margin-top:2px;font-weight:400}.hohint.ok{color:var(--ok)}
+@media (max-width:1100px),(orientation:portrait){.hosum{grid-template-columns:1fr 1fr}.hodet,.hogrid{grid-template-columns:1fr}.hoacts{margin-left:0;width:100%}}
+.hobase input[type=radio],.hoopt input,.hodiff input{width:auto;flex:none;min-height:0;margin:0}
+.hoopt.sub label{white-space:nowrap}
+.hodef .seg button.on[data-v=take]{color:var(--bad);font-weight:650}.hodef .seg button.on[data-v=fixed]{color:var(--ok);font-weight:650}
+.tabs{overflow-y:hidden}
+/* 2.2: Tabellen als Karten, wenn zu schmal */
+table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;width:100%}
+table.stack tr.thr{display:none}
+table.stack tr{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;padding:6px 10px;background:var(--panel)}
+table.stack td{display:flex;gap:10px;align-items:center;border:0!important;padding:3px 0!important;text-align:left!important;min-height:0}
+table.stack td[data-label]:not([data-label=""])::before{content:attr(data-label);flex:0 0 96px;color:var(--mute);font-size:12px;font-weight:600}
+table.stack td:empty{display:none}
+/* 2.2: Tablet – Bedienelemente groß genug, Druckvorschau-Leiste umbrechen */
+body.mobile .seg button{min-height:40px;padding-left:14px;padding-right:14px}
+body.mobile .ph button{width:28px;height:28px;line-height:28px;top:-10px;right:-10px;font-size:16px}
+body.mobile .ph img{width:48px;height:48px}
+.pvbar{flex-wrap:wrap;row-gap:8px}
+@media (orientation:portrait){.pvbar .hint{display:none}}
+body.mobile .phs .ph button,body.mobile .phs.big .ph button{width:32px;height:32px;line-height:32px;top:-12px;right:-12px}
+body.mobile details.room summary .ib{width:40px;height:40px}

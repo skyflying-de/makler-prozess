@@ -1,6 +1,6 @@
 {
   "name": "makler-prozess",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Prozesssteuerung Verkauf & Vermietung mit Zeiterfassung, Übergabeprotokoll und Cloud-Sync",
   "main": "main.js",
   "keywords": [],

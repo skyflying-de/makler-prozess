@@ -19,7 +19,21 @@ const HELP=[
 {id:"objekte",title:"Objekte",shot:"03_objekt",html:`
 <p>Ein <b>Objekt</b> ist die Immobilie. Es kann mehrere Fälle haben (z. B. erst vermietet, später verkauft). Objektdaten werden nur einmal erfasst und gelten für alle Fälle.</p>
 <ul><li>Anhänge (Grundbuch, Grundrisse, Fotos …) werden in den Datenordner kopiert: <code>dateien\\Objekte\\&lt;Nr. Objekt&gt;\\…</code>. „Ordner öffnen“ zeigt sie im Explorer.</li>
-<li>„Aktion“ startet direkt eine Aktion am offenen Fall des Objekts.</li></ul>`},
+<li>„Aktion“ startet direkt eine Aktion am offenen Fall des Objekts.</li>
+<li>Reiter <b>Übergabe</b>: Kennzahlen der letzten Übergabe, <b>Protokollverlauf</b> mit Kurzübersicht und die <b>Übergabe-Stammdaten</b> (siehe Hilfe-Thema „Übergabe am Objekt“).</li></ul>`},
+{id:"uebergabe",title:"Übergabe am Objekt",shot:"18_uebergabe",html:`
+<p>Im Objekt, Reiter <b>Übergabe</b>, liegt alles rund um Wohnungsübergaben an einer Stelle. Oben zeigt die farbige Leiste die <b>letzte Übergabe</b> mit Status und offenen Mängeln.</p>
+<table><tr><th>Bereich</th><th>Inhalt</th></tr>
+<tr><td>Kennzahlen</td><td>Status der letzten Übergabe · offene Mängel (neu / übernommen / behoben) · Zähler mit letzter Ablesung · Schlüssel</td></tr>
+<tr><td>Protokollverlauf</td><td>alle Protokolle als Zeitleiste: Art, Datum, Status, Mieter, Mängel, Fotos, Zähler, Schlüssel, Nacharbeiten. <b>Details</b> zeigt Mängel mit Foto und Zählerstände mit Verbrauch seit dem vorherigen Protokoll. Knöpfe: Öffnen · PDF · <b>Als Basis</b></td></tr>
+<tr><td>Übergabe-Stammdaten</td><td><b>Räume, Zähler</b> (Art, Nummer, Lage, letzter Stand), <b>Schlüssel</b> (Anzahl) und <b>Einbauküche/Geräte</b> – je „Bearbeiten“: Zeilen anlegen, ändern, löschen, mit ▲▼ sortieren</td></tr></table>
+<p><b>Neues Protokoll</b> (hier oder im Fall „+ Einzug/Auszug“):</p>
+<ol><li>Vorgang und Art wählen. Räume, Zähler, Schlüssel und Geräte kommen aus den Stammdaten.</li>
+<li><b>Basis</b>: letztes Protokoll, ein anderes früheres Protokoll oder leer.</li>
+<li><b>Übernehmen</b> (Mehrfachauswahl): bisherige Mängel mit oder ohne Fotos · Zählernummern · bisherige Zählerstände als Vorwert · Anzahl Schlüssel · Abschlussanmerkungen.</li>
+<li><b>Mängel prüfen</b>: je Mangel <b>übernehmen</b> (besteht noch) oder <b>behoben</b>. Behobene erscheinen im neuen Protokoll als Hinweis und im Ausdruck unter „Seit dem vorherigen Protokoll behoben“.</li></ol>
+<p>Zählernummern lassen sich im Protokoll jederzeit ändern. <b>Nach der Unterschrift</b> zeigt die App Abweichungen zu den Stammdaten (neue Zählernummer, Zählerstand, Schlüsselanzahl, Räume) – angehakte Punkte werden ins Objekt übernommen.</p>
+<p class="tip">Bei bestehenden Objekten wurden die Stammdaten einmalig aus dem jüngsten Protokoll übernommen (sonst aus der Protokollvorlage).</p>`},
 {id:"faelle",title:"Fälle & Phasen",shot:"04_faelle",html:`
 <p>Jeder Fall durchläuft fünf Phasen: <b>Neuer Auftrag → Datenaufnahme → Durchführung → Abschluss → Abrechnung</b>. Ansicht als Phasen-Board oder Liste, filterbar nach Verkauf/Vermietung.</p>
 <p>Ein Klick auf eine Phase im Fall setzt sie; die Daten der Phasenwechsel fließen in die Pipeline-Auswertung.</p>`},
@@ -30,7 +44,7 @@ const HELP=[
 <p><b>Termine & Wiedervorlagen</b> direkt am Fall.</p>`},
 {id:"protokoll",title:"Übergabeprotokoll",shot:"06_protokoll",html:`
 <p>Bei Vermietungen im Tab <b>Übergabeprotokoll</b>. Ablauf:</p>
-<ol><li><b>+ Einzug</b> oder <b>+ Auszug</b> – das Erfassungsfenster öffnet sich (Touch).</li><li>Räume, Küche, Zähler, Schlüssel erfassen – mit Fotos.</li>
+<ol><li><b>+ Einzug</b> oder <b>+ Auszug</b> – Basis und Übernahme wählen (siehe „Übergabe am Objekt“), danach öffnet sich das Erfassungsfenster (Touch).</li><li>Räume, Küche, Zähler, Schlüssel erfassen – mit Fotos.</li>
 <li><b>Fertig → Unterschrift</b>: <b>Digital am Gerät</b> (alle unterschreiben auf dem Bildschirm, PDF wird abgelegt) oder <b>Ausdruck auf Papier</b> (drucken, unterschreiben, Scan hochladen).</li>
 <li>Bei digital: Versand an den Mieter – die E-Mail-Adresse wird abgefragt und in den Falldaten gespeichert; das Einverständnis ist Pflicht.</li></ol>
 <p>Nach der Unterschrift ist das Protokoll gesperrt (Admin kann entsperren).</p>`},
@@ -46,7 +60,8 @@ const HELP=[
 {id:"termine",title:"Termine & Wiedervorlagen",shot:"09_termine",html:`
 <p>Wochenansicht aller Termine (farbig nach Verkauf/Vermietung) und Wiedervorlagen. Klick öffnet den Eintrag; „+“ im Tag legt einen Termin an.</p>`},
 {id:"zeiten",title:"Zeiterfassung",shot:"10_zeiten",html:`
-<p>Alle Zeitbuchungen – eigene oder alle. Eine Buchung = eine Aktion mit genau einer Leistung. Klick zum Bearbeiten; Änderungen werden mit Person und Zeitpunkt protokolliert.</p>`},
+<p>Alle Zeitbuchungen – eigene oder alle. Eine Buchung = eine Aktion mit genau einer Leistung. Klick zum Bearbeiten; Änderungen werden mit Person und Zeitpunkt protokolliert.</p>
+<p><b>Windows-Taskleiste:</b> Läuft eine eigene Aktion, steht die Zeit im Fenstertitel („▶ 0:42 Besichtigung · M-2026-046“), das Programmsymbol trägt einen grünen (läuft) bzw. gelben Punkt (Pause), in der Vorschau gibt es <b>Pause/Fortsetzen</b> und <b>Stopp</b>. Das <b>Uhr-Symbol im Infobereich</b> (neben der Uhrzeit) zeigt die Zeit als Tooltip; Rechtsklick: Pause, Fortsetzen, Stopp, Aktion erfassen, Öffnen, Beenden. Schließen (X) bei laufender Zeit lässt die App im Infobereich weiterlaufen.</p>`},
 {id:"auswertung",title:"Auswertungen",shot:"11_auswertung",html:`
 <ul><li><b>Zeiten je Mitarbeiter</b> (Woche/Monat, nach Leistung)</li><li><b>Aufwand je Aktion/Leistung</b> mit Ø je Fall – Richtwert für die Kalkulation</li>
 <li><b>Pipeline</b>: Fälle je Phase, Verweildauer, Dauer bis Abschluss</li><li><b>Leistungsnachweise</b> aller abgeschlossenen Fälle</li></ul>`},
@@ -78,6 +93,9 @@ const HELP=[
 <p><b>Dokumente:</b> eigene Fotos und Protokolle bleiben auf dem Tablet, bis sie in der Cloud liegen. Dokumente anderer Geräte werden erst beim Öffnen geladen (dafür ist Verbindung nötig). <b>Gerät → Speicher freigeben</b> entfernt bereits synchronisierte fremde Dokumente wieder.</p>
 <p><b>PDF und Versand:</b> „Als PDF speichern“ und „Per E-Mail senden“ öffnen das Android-Teilen-Menü (z. B. Gmail, Outlook). Die Mieter-E-Mail-Adresse wird dabei in die Zwischenablage kopiert.</p>
 <p class="tip"><b>Verlust des Tablets:</b> in Nextcloud (Einstellungen → Sicherheit) das App-Passwort des Tablets widerrufen bzw. im Microsoft-Konto die Sitzungen abmelden. Die Daten auf dem Gerät sind zusätzlich durch PIN-Sperre und Android-Verschlüsselung geschützt.</p>`},
+{id:"darstellung",title:"Anzeigegröße & Bildschirm",html:`
+<p>Oben rechts <b>Aa</b>: <b>Automatisch</b> (Standard – passt die Größe an Bildschirm bzw. Fenster an), <b>Kompakt</b> (85 %), <b>Normal</b>, <b>Groß</b> (115 %). Die Wahl gilt nur für dieses Gerät.</p>
+<p>Am PC zusätzlich <kbd>Strg</kbd> + <kbd>+</kbd> / <kbd>−</kbd>, <kbd>Strg</kbd> + <kbd>0</kbd> = Automatisch. Am Tablet funktionieren alle Seiten, Dialoge und die Protokollerfassung im <b>Hoch- und Querformat</b>.</p>`},
 {id:"sicherung",title:"Daten & Sicherung",shot:"15_sicherung",html:`
 <p><b>Datenordner</b>: enthält <code>daten.json</code> und den Ordner <code>dateien</code>. „Speicherort ändern / Umziehen“ kopiert alles in einen neuen Ordner (z. B. NAS) oder verwendet dort vorhandene Daten.</p>
 <p><b>Vollsicherung</b>: eine ZIP-Datei mit allem. Automatisch täglich beim ersten Start (Anzahl einstellbar, Standard 14). <b>Wiederherstellen</b> aus der Liste oder einer Datei – vorher wird der aktuelle Stand gesichert.</p>
