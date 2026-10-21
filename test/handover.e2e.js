@@ -1,0 +1,130 @@
+// End-to-End-Test 2.2: Übergabe-Stammdaten am Objekt, Protokoll mit Basis + Mängelprüfung, Rückschreiben,
+// Protokollverlauf, Anzeigegröße, Taskleiste/Infobereich.  Aufruf: xvfb-run -a node test/handover.e2e.js <scratch>
+const { _electron: electron } = require("playwright");
+const fs = require("fs"), path = require("path");
+const APP = path.join(__dirname, ".."), SCR = process.argv[2] || "/tmp/mp-ho", SHOTS = path.join(SCR, "shots");
+let fails = 0, checks = 0; const ok = (c, m) => { checks++; if (c) console.log("  ✓ " + m); else { fails++; console.log("  ✗ " + m); } };
+
+(async () => {
+  fs.rmSync(SCR, { recursive: true, force: true }); fs.mkdirSync(SHOTS, { recursive: true });
+  const HOME = path.join(SCR, "home"); fs.mkdirSync(path.join(HOME, "Documents"), { recursive: true });
+  const app = await electron.launch({ executablePath: path.join(APP, "node_modules/electron/dist/electron"), args: ["--no-sandbox", APP], env: { ...process.env, HOME } });
+  const w = await app.firstWindow(), errs = []; w.on("pageerror", e => errs.push(e.message)); w.on("dialog", d => d.accept());
+  await w.setViewportSize({ width: 1360, height: 860 }); await w.waitForTimeout(900);
+  await w.click("[data-a=next]"); await w.waitForTimeout(300); await w.click("[data-s=demo]"); await w.click("[data-a=next]"); await w.waitForTimeout(200);
+  await w.fill("[name=wn]", "Sandra Lugt"); await w.fill("[name=ws]", "SL"); await w.click("[data-a=next]"); await w.waitForTimeout(1300); await w.keyboard.press("Escape");
+  const shot = n => w.screenshot({ path: path.join(SHOTS, n + ".png") });
+
+  console.log("1) Übergabe-Stammdaten aus letztem Protokoll");
+  const m = await w.evaluate(() => { const p = DB.protocols[0], o = objBy(caseBy(p.caseId).objectId); window.__oid = o.id; window.__p0 = p.id;
+    const a = JSON.stringify(hoFromProtocol(o, p)), b = JSON.stringify(hoFromProtocol(o, p));
+    return { src: o.handover.src, no: p.no, rooms: o.handover.rooms.length, meters: o.handover.meters.length, m0: o.handover.meters[0], keys: o.handover.keys.map(k => k.n).join(","), same: a === b, others: DB.objects.filter(x => x.id !== o.id).every(x => x.handover && x.handover.src === "Vorlage") }; });
+  ok(m.src === m.no && m.rooms > 3 && m.meters > 3, `Objekt übernimmt Räume/Zähler/Schlüssel aus ${m.no} (${m.rooms} Räume, ${m.meters} Zähler)`);
+  ok(m.m0.nr && m.m0.last && m.m0.last.pno === m.no, `Zähler mit Nummer und letztem Stand (${m.m0.label} ${m.m0.nr}: ${m.m0.last && m.m0.last.stand})`);
+  ok(m.same, "Migration erzeugt auf jedem Gerät identische Kennungen (keine Dubletten beim Abgleich)");
+  ok(m.others, "Objekte ohne Protokoll: Stammdaten aus der Protokollvorlage");
+
+  console.log("2) Objekt → Reiter Übergabe, Stammdaten bearbeiten");
+  await w.evaluate(() => { OTAB = "uebergabe"; go("objekt", __oid); }); await w.waitForTimeout(300); await shot("50_objekt_uebergabe");
+  ok(/Letzte Übergabe/.test(await w.locator(".holast").innerText()), "Hinweisleiste „Letzte Übergabe“");
+  ok(await w.locator(".hosum .card").count() === 4 && await w.locator(".hoi").count() >= 1, "4 Kennzahlen und Protokollverlauf");
+  await w.click(".hosh:has-text('Zähler') button"); await w.waitForTimeout(200);
+  await w.click(".ov [data-add]"); const rows = w.locator(".ov .hor"); const n = await rows.count();
+  await rows.nth(n - 1).locator('[data-f=label]').fill("Gas Keller"); await rows.nth(n - 1).locator('[data-f=nr]').fill("GK-77"); await rows.nth(n - 1).locator('[data-f=loc]').fill("Keller");
+  await rows.nth(n - 1).locator("[data-up]").click(); await w.locator(".ov .hor").nth(0).locator("[data-rm]").click(); await shot("51_zaehler_bearbeiten");
+  await w.click(".ov [data-x=ok]"); await w.waitForTimeout(200);
+  const ed = await w.evaluate(() => objBy(__oid).handover.meters.map(x => x.label + ":" + x.nr));
+  ok(ed.includes("Gas Keller:GK-77") && ed.length === m.meters && !ed.some(x => x.startsWith(m.m0.label + ":")), "Zähler hinzugefügt, sortiert und gelöscht: " + ed.slice(-3).join(" | "));
+  await w.click(".hosh:has-text('Räume') button"); await w.waitForTimeout(200); await w.click(".ov [data-add]");
+  await w.locator(".ov .hor").last().locator("input").fill("Gäste-WC"); await w.click(".ov [data-x=ok]"); await w.waitForTimeout(200);
+  ok(await w.evaluate(() => objBy(__oid).handover.rooms.some(r => r.name === "Gäste-WC")), "Raum hinzugefügt");
+
+  console.log("3) Neues Protokoll: Basis, Übernahme, Mängelprüfung");
+  await w.click("button:has-text('Neues Protokoll')"); await w.waitForTimeout(250);
+  ok(await w.locator(".hodlg input[name=hom][value=last]").isChecked(), "Basis „letztes Protokoll“ vorausgewählt");
+  await w.locator(".hodlg [data-o=closing]").check(); await w.waitForTimeout(100); await shot("52_neues_protokoll");
+  await w.click(".hodlg [data-x=next]"); await w.waitForTimeout(200);
+  const nd = await w.locator(".hodlg .hodef").count(); ok(nd >= 2, `Mängelprüfung zeigt ${nd} Mängel aus dem letzten Protokoll`);
+  await w.locator(".hodlg .hodef").nth(1).locator("[data-v=fixed]").click(); await shot("53_maengel_pruefen");
+  await w.click(".hodlg [data-x=ok]"); await w.waitForTimeout(900);
+  ok(await w.locator("#cap").count() === 1, "Erfassung öffnet sich direkt");
+  const np = await w.evaluate(() => { const p = DB.protocols[DB.protocols.length - 1]; window.__p1 = p.id; let from = [], fixed = [];
+    p.sections.forEach(s => { const all = s.type === "rooms" ? s.rooms.map(r => [r.name, r.values]) : [[s.title, s.values]]; all.forEach(([a, vs]) => Object.entries(vs).forEach(([k, v]) => { if (v && v.from) from.push({ a, k, ph: (v.photos || []).length, pf: (v.photosFrom || []).length }); if (v && v.fixedFrom) fixed.push(a); })); });
+    const ms = p.sections.find(s => s.type === "meters"), ks = p.sections.find(s => s.type === "keys"), rs = p.sections.find(s => s.type === "rooms");
+    const na = p.sections.filter(s => s.type === "fields").flatMap(s => s.items.filter(i => i.ftype === "textarea").map(i => s.values[i.id])).filter(Boolean);
+    return { kind: p.kind, base: p.base, from, fixed, mitems: ms.items.map(i => i.label), mvals: ms.items.map(i => ms.values[i.id] || {}), keys: ks.items.map(i => (ks.values[i.id] || {}).n), rooms: rs.rooms.map(r => r.name), na }; });
+  ok(np.kind === "Auszug" && np.base, `Auszug angelegt, Basis ${np.base && np.base.no}`);
+  ok(np.from.length === 1 && np.from[0].ph >= 1 && np.from[0].pf === np.from[0].ph, "1 Mangel übernommen inkl. Foto (als geerbt markiert)");
+  ok(np.fixed.length === 1, "1 Mangel als behoben vermerkt");
+  ok(np.rooms.includes("Gäste-WC"), "Räume aus Objekt-Stammdaten (inkl. Gäste-WC)");
+  ok(np.mitems.some(l => /Gas Keller \(Keller\)/.test(l)) && np.mvals.some(v => v.nr === "GK-77"), "Zähler aus Objekt mit Lage und Nummer");
+  ok(np.mvals.filter(v => v.prev && v.prev.stand).length >= 3, "bisherige Zählerstände als Vorwert");
+  ok(np.keys.filter(Boolean).length >= 4, "Schlüsselanzahl übernommen");
+  ok(np.na.length >= 1, "Abschlussanmerkungen übernommen");
+  await w.evaluate(() => capGo(capPages(pById(__p1)).findIndex(x => x.s && x.s.type === "meters"))); await w.waitForTimeout(250); await shot("54_erfassung_vorwert");
+  ok(/Vorwert/.test(await w.locator("#cap .capmain").innerText()), "Erfassung zeigt Vorwerte der Zähler");
+  // geerbtes Foto entfernen darf die Datei des alten Protokolls nicht löschen
+  const ph = await w.evaluate(async () => { const p = pById(__p1); let hit; p.sections.forEach(s => { const all = s.type === "rooms" ? s.rooms.map(r => [r.id, r.values]) : [[null, s.values]]; all.forEach(([rid, vs]) => Object.entries(vs).forEach(([k, v]) => { if (v && v.photosFrom && v.photosFrom.length && !hit) hit = { sid: s.id, rid, k, rel: v.photos[0] }; })); });
+    rmPhoto(p.id, hit.sid, hit.rid, hit.k, 0); return { rel: hit.rel, still: String(hit.rel).startsWith("data:") ? true : !!(await api.fileStat(hit.rel)), old: JSON.stringify(pById(__p0)).includes(hit.rel) }; });
+  ok(ph.still && ph.old, "geerbtes Foto entfernt – Datei des alten Protokolls bleibt erhalten");
+
+  console.log("4) Erfassen, Unterschrift (Papier), Abweichungen ins Objekt übernehmen");
+  await w.evaluate(() => { const p = pById(__p1), ms = p.sections.find(s => s.type === "meters"), ks = p.sections.find(s => s.type === "keys"), rs = p.sections.find(s => s.type === "rooms");
+    const i0 = ms.items[0]; ms.values[i0.id] = { ...(ms.values[i0.id] || {}), nr: "NEU-1", stand: "19.000 kWh" }; ms.values[ms.items[1].id] = { ...(ms.values[ms.items[1].id] || {}), stand: "7.500 m³" };
+    const k0 = ks.items[0]; ks.values[k0.id] = { n: "4" }; rs.rooms.push({ id: uid(), name: "Hobbyraum", values: {} }); closeCap(); p.status = "ready"; p.signMode = "print"; save(); TAB = "proto"; PSEL = p.id; go("fall", p.caseId); });
+  fs.writeFileSync(path.join(SCR, "scan.pdf"), "%PDF-1.4 unterschrieben");
+  await w.setInputFiles('label:has-text("Unterschriebenes Exemplar hochladen") input[type=file]', path.join(SCR, "scan.pdf")); await w.waitForTimeout(1200);
+  ok(await w.locator(".ov .hodiff label").count() >= 4, `Abweichungsdialog nach Unterschrift (${await w.locator(".ov .hodiff label").count()} Punkte)`); await shot("55_abweichungen");
+  const roomDelBoxes = await w.locator(".ov .hodiff label:has-text('auch aus den Stammdaten löschen')").count();
+  const keyLabel = w.locator(".ov .hodiff label:has-text('Schlüssel')").first(); await keyLabel.locator("input").uncheck();
+  await w.click(".ov [data-x=ok]"); await w.waitForTimeout(300);
+  const after = await w.evaluate(() => { const o = objBy(__oid), H = o.handover, p = pById(__p1); return { m0: H.meters[0], st1: H.meters[1].last, k0: H.keys[0].n, hobby: H.rooms.some(r => r.name === "Hobbyraum"), done: !!p.hoDone, pend: hoPending(p) }; });
+  ok(after.m0.nr === "NEU-1" && after.m0.last.stand === "19.000 kWh", "neue Zählernummer und Stand ins Objekt übernommen");
+  ok(after.st1 && after.st1.stand === "7.500 m³", "weiterer Zählerstand übernommen");
+  ok(after.k0 !== "4", "abgewählte Schlüsselanzahl nicht übernommen");
+  ok(after.hobby, "neuer Raum in die Stammdaten aufgenommen");
+  ok(after.done && !after.pend && roomDelBoxes === 0, "erledigt – keine erneute Nachfrage");
+
+  console.log("5) Protokollverlauf, Ausdruck");
+  await w.evaluate(() => { OTAB = "uebergabe"; HOOPEN = {}; go("objekt", __oid); }); await w.waitForTimeout(300); await shot("56_verlauf");
+  const tl = await w.evaluate(() => [...document.querySelectorAll(".hoi")].map(x => x.innerText.replace(/\s+/g, " ")));
+  ok(tl.length === 2 && /Auszug/.test(tl[0]) && /behoben/.test(tl[0]) && /Basis/.test(tl[0]), "Zeitleiste: neues Protokoll oben mit Basis, Mängeln und „behoben“");
+  ok(/Δ/.test(tl[0]) || await w.locator(".hoi").first().locator(".hodet").count() === 1, "Details mit Zählerständen aufgeklappt");
+  ok(/Auszug/.test(await w.locator(".holast").innerText()), "Hinweisleiste zeigt das neue Protokoll");
+  ok(await w.locator(".banner:has-text('weichen')").count() === 0, "ältere Protokolle (vor 2.2) lösen keine Nachfrage aus");
+  const doc = await w.evaluate(() => buildProtoDoc(pById(__p1)));
+  ok(/Seit dem vorherigen Protokoll behoben/.test(doc) && /seit UP-/.test(doc), "Ausdruck: übernommene Mängel mit Herkunft, behobene Mängel aufgeführt");
+  await w.evaluate(() => help()); await w.waitForTimeout(200);
+  ok(/Übergabe am Objekt/.test(await w.locator(".helpdr article h2").innerText()), "Hilfe öffnet Thema „Übergabe am Objekt“"); await w.keyboard.press("Escape");
+
+  console.log("6) Anzeigegröße");
+  await w.setViewportSize({ width: 1280, height: 720 }); await w.waitForTimeout(400);
+  ok(await w.evaluate(() => ZOOMF) === 0.9, "Automatisch: 1280×720 → 90 %");
+  await w.setViewportSize({ width: 1100, height: 680 }); await w.waitForTimeout(400);
+  ok(await w.evaluate(() => ZOOMF) === 0.8, "Automatisch: 1100×680 → 80 %");
+  await w.click("button[aria-label='Anzeigegröße']"); await w.waitForTimeout(150);
+  const popPos = await w.evaluate(() => { const b = document.querySelector("button[aria-label='Anzeigegröße']").getBoundingClientRect(), p = document.querySelector(".pop").getBoundingClientRect(); return Math.abs(p.top - b.bottom) < 20; });
+  ok(popPos, "Menü erscheint direkt unter dem Knopf (auch bei Zoom)");
+  await w.locator(".pop button", { hasText: "Groß" }).click(); await w.waitForTimeout(200);
+  ok(await w.evaluate(() => DB.ui.zoom === "l" && document.documentElement.style.zoom === "1.15"), "manuell „Groß“ je Gerät gespeichert");
+  await w.keyboard.press("Control+-"); await w.waitForTimeout(150);
+  ok(await w.evaluate(() => DB.ui.zoom) === "m", "Strg + − verkleinert");
+  await w.keyboard.press("Control+0"); await w.setViewportSize({ width: 1360, height: 860 });
+
+  console.log("7) Taskleiste und Infobereich");
+  const title = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle());
+  ok(/^▶ \d+:\d\d .+ · M-\d{4}-\d{3} – Makler-Prozess$/.test(title), "Fenstertitel mit Laufzeit: " + title);
+  let tb = await app.evaluate(() => global.__mpTaskbar());
+  ok(tb.tray && /▶/.test(tb.tooltip) && tb.overlay === "läuft" && tb.thumbar.join() === "Pause,Stopp", "Infobereich, Badge „läuft“ und Vorschau-Knöpfe Pause/Stopp");
+  await app.evaluate(() => global.__mpTrayClick(1)); await w.waitForTimeout(500);
+  tb = await app.evaluate(() => global.__mpTaskbar());
+  ok(tb.overlay === "pausiert" && tb.thumbar[0] === "Fortsetzen" && await w.evaluate(() => !!running().find(e => e.userId === DB.ui.user).pauseAt), "Pause über das Tray-Menü");
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await w.waitForTimeout(600);
+  tb = await app.evaluate(() => global.__mpTaskbar());
+  ok(tb.hidden && !tb.visible, "Schließen bei laufender Zeit: App bleibt im Infobereich");
+  await app.evaluate(() => global.__mpTrayClick(global.__mpTaskbar().menu.indexOf("Makler-Prozess öffnen"))); await w.waitForTimeout(300);
+  ok((await app.evaluate(() => global.__mpTaskbar())).visible, "Öffnen aus dem Infobereich");
+  ok(errs.length === 0, "keine Skriptfehler" + (errs.length ? ": " + errs.slice(0, 3).join(" | ") : ""));
+  await app.close();
+  console.log(`\n${checks - fails}/${checks} Prüfungen bestanden`); process.exit(fails ? 1 : 0);
+})().catch(e => { console.error("ABBRUCH", e); process.exit(2); });

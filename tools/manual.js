@@ -27,6 +27,8 @@ intro.push({ id: "installation-tablet", title: "Installation auf dem Tablet", sh
 <p>Danach: <b>Bestehendem Büro beitreten</b> → Cloud-Ordner und Büro-Passwort wie am PC → Mitarbeiter wählen → PIN festlegen. Details zu GitHub, Signierschlüssel, CORS und App-Registrierung: <b>Einrichtung_Tablet.html</b>.</p>
 <p class="tip"><b>Updates:</b> Die Android-App wird mit der neuen APK einfach drüber installiert (Daten bleiben). Die Browser-App meldet „Neue Version verfügbar“ → <b>Jetzt aktualisieren</b>.</p>` });
 const extra = {
+  "uebergabe": [D("56_verlauf"), D("50_objekt_uebergabe"), D("52_neues_protokoll"), D("53_maengel_pruefen"), D("54_erfassung_vorwert"), D("55_abweichungen")],
+  "darstellung": [D("60_tablet_hoch_karten"), D("61_tablet_hoch_uebergabe")],
   "tablet": [D("40_tablet_willkommen"), D("42_tablet_pin_festlegen"), D("43_tablet_start"), D("47_tablet_hochformat"), D("44_tablet_offline"), D("46_tablet_geraet")],
   "erste-schritte": [H("01_start")], "protokoll": [H("06_protokoll")], "abrechnung": [H("08_abrechnung")], "sicherung": [H("15_sicherung")],
   "cloud": [D("27_modus_cloud"), D("28_start_cloud")]
