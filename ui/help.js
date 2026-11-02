@@ -31,6 +31,7 @@ const HELP=[
 <ol><li>Vorgang und Art wählen. Räume, Zähler, Schlüssel und Geräte kommen aus den Stammdaten.</li>
 <li><b>Basis</b>: letztes Protokoll, ein anderes früheres Protokoll oder leer.</li>
 <li><b>Übernehmen</b> (Mehrfachauswahl): bisherige Mängel mit oder ohne Fotos · Zählernummern · bisherige Zählerstände als Vorwert · Anzahl Schlüssel · Abschlussanmerkungen.</li>
+<li><b>Räume umbenennen</b>: am Objekt unter Übergabe-Stammdaten → Räume → Bearbeiten (Name direkt ändern; wird in noch nicht unterschriebene Protokolle übernommen) oder im Protokoll mit dem Stift am Raum bzw. „Umbenennen“ in der Erfassung.</li>
 <li><b>Mängel prüfen</b>: je Mangel <b>übernehmen</b> (besteht noch) oder <b>behoben</b>. Behobene erscheinen im neuen Protokoll als Hinweis und im Ausdruck unter „Seit dem vorherigen Protokoll behoben“.</li></ol>
 <p>Zählernummern lassen sich im Protokoll jederzeit ändern. <b>Nach der Unterschrift</b> zeigt die App Abweichungen zu den Stammdaten (neue Zählernummer, Zählerstand, Schlüsselanzahl, Räume) – angehakte Punkte werden ins Objekt übernommen.</p>
 <p class="tip">Bei bestehenden Objekten wurden die Stammdaten einmalig aus dem jüngsten Protokoll übernommen (sonst aus der Protokollvorlage).</p>`},
@@ -51,7 +52,10 @@ const HELP=[
 {id:"erfassung",title:"Protokoll-Erfassung (Touch)",shot:"07_erfassung",html:`
 <p>Vollflächiges Fenster für Tablet oder Notebook mit Touch. Links die Seiten (jeder Raum eine Seite), unten <b>Zurück / Weiter</b>.</p>
 <ul><li>Zustand per großer Taste; nochmaliges Tippen hebt auf. „Alle übrigen in Ordnung“ füllt den Rest.</li>
-<li><b>+ Foto 📷</b> öffnet am Tablet die Kamera; Fotos werden im Datenordner abgelegt.</li>
+<li><b>+ Foto 📷</b> öffnet am Tablet die Kamera; beliebig viele Fotos je Prüfpunkt (Zähler „n Fotos“). Fotos werden im Datenordner abgelegt.</li>
+<li>Je Raum: Haken <b>Zimmertürschlüssel</b> (Standard aus) und das blaue <b>＋</b>: <b>Anmerkung / weiterer Mangel</b> (Typ, Text, Fotos – Mängel zählen in der Mängelübersicht), <b>Sonstiges</b> ergänzen, <b>Anleitung</b> erfassen (Raum vorbelegt).</li>
+<li><b>＋ Sonstiges</b> in der Kopfzeile öffnet jederzeit das Feld „Sonstiges“ (steht oberhalb der Vereinbarungen); aus einem Raum heraus beginnt die neue Zeile mit „[Raum]“.</li>
+<li>Seite <b>Unterlagen</b>: Block <b>Anleitungen</b> mit „＋ Anleitung“ – Bezeichnung, Raum, übergeben (Papier / digital / nicht übergeben), Foto.</li>
 <li>Schlüssel per − / +. Zählerstände mit Foto als Nachweis.</li><li><b>Abschluss</b>: offene Punkte, Mängel, Druckvorschau, Unterschrift.</li>
 <li>Tasten: ← → blättern, Esc schließen. Alles wird sofort gespeichert.</li></ul>`},
 {id:"abrechnung",title:"Abschluss & Abrechnung",shot:"08_abrechnung",html:`
@@ -60,6 +64,7 @@ const HELP=[
 {id:"termine",title:"Termine & Wiedervorlagen",shot:"09_termine",html:`
 <p>Wochenansicht aller Termine (farbig nach Verkauf/Vermietung) und Wiedervorlagen. Klick öffnet den Eintrag; „+“ im Tag legt einen Termin an.</p>`},
 {id:"zeiten",title:"Zeiterfassung",shot:"10_zeiten",html:`
+<p class="tip">Die Zeiterfassung lässt sich unter Einstellungen → Funktionen für das ganze Büro ausschalten.</p>
 <p>Alle Zeitbuchungen – eigene oder alle. Eine Buchung = eine Aktion mit genau einer Leistung. Klick zum Bearbeiten; Änderungen werden mit Person und Zeitpunkt protokolliert.</p>
 <p><b>Windows-Taskleiste:</b> Läuft eine eigene Aktion, steht die Zeit im Fenstertitel („▶ 0:42 Besichtigung · M-2026-046“), das Programmsymbol trägt einen grünen (läuft) bzw. gelben Punkt (Pause), in der Vorschau gibt es <b>Pause/Fortsetzen</b> und <b>Stopp</b>. Das <b>Uhr-Symbol im Infobereich</b> (neben der Uhrzeit) zeigt die Zeit als Tooltip; Rechtsklick: Pause, Fortsetzen, Stopp, Aktion erfassen, Öffnen, Beenden. Schließen (X) bei laufender Zeit lässt die App im Infobereich weiterlaufen.</p>`},
 {id:"auswertung",title:"Auswertungen",shot:"11_auswertung",html:`
@@ -67,7 +72,8 @@ const HELP=[
 <li><b>Pipeline</b>: Fälle je Phase, Verweildauer, Dauer bis Abschluss</li><li><b>Leistungsnachweise</b> aller abgeschlossenen Fälle</li></ul>`},
 {id:"einstellungen",title:"Einstellungen",shot:"12_einstellungen",html:`
 <p>Nur für Admins. <b>Erfassungsfelder</b> (Objekt, Verkauf, Vermietung: Reihenfolge, Pflicht, aktiv), <b>Aktionen</b> je Phase mit erlaubten Leistungen und Standardleistung, <b>Leistungskatalog</b> mit Stundensätzen, <b>Mitarbeiter</b> mit Rolle und PIN.</p>
-<p><b>Anmeldung</b>: Standard ist die Benutzerauswahl. Unter Mitarbeiter auf „Mitarbeiter + PIN“ umschalten, sobald alle eine PIN haben.</p>`},
+<p><b>Anmeldung</b>: Standard ist die Benutzerauswahl. Unter Mitarbeiter auf „Mitarbeiter + PIN“ umschalten, sobald alle eine PIN haben.</p>
+<p><b>Funktionen → Zeiterfassung Ein/Aus</b> (gilt für das ganze Büro, alle Geräte): Bei „Aus“ entfallen Laufend, Zeiterfassung, Aktivitäten im Fall, „Aktion starten“, die Zeit-Auswertungen, der Reiter Aktionen und die Zeitanzeige in der Windows-Taskleiste. Laufende Aktionen werden beim Ausschalten nach Rückfrage gestoppt. Bisherige Buchungen bleiben gespeichert und sind beim Wiedereinschalten wieder da. Für die Abrechnung nach Stunden trägt man im Fall unter <i>Abschluss & Abrechnung</i> → <b>Stunden manuell</b> Leistung und Stunden ein.</p>`},
 {id:"vorlage",title:"Protokoll-Vorlage",shot:"13_vorlage",html:`
 <p>Abschnitte des Übergabeprotokolls: Angaben, Räume × Prüfpunkte, Checkliste, Zählerstände, Schlüssel. Eine Zeile je Punkt; bei Angaben Feldtyp anhängen: <code>[ja/nein]</code>, <code>[datum]</code>, <code>[zahl]</code>, <code>[text lang]</code>, <code>[auswahl: A;B]</code>.</p>
 <p>Bestehende Protokolle bleiben unverändert – jedes Protokoll ist eine Kopie der Vorlage zum Zeitpunkt der Anlage.</p>`},
@@ -92,6 +98,7 @@ const HELP=[
 <li>Das Tablet <b>sperrt sich nach 10 Minuten</b> ohne Bedienung bzw. im Hintergrund. Sperren sofort: Symbol mit dem Schloss oben rechts.</li></ol>
 <p><b>Dokumente:</b> eigene Fotos und Protokolle bleiben auf dem Tablet, bis sie in der Cloud liegen. Dokumente anderer Geräte werden erst beim Öffnen geladen (dafür ist Verbindung nötig). <b>Gerät → Speicher freigeben</b> entfernt bereits synchronisierte fremde Dokumente wieder.</p>
 <p><b>PDF und Versand:</b> „Als PDF speichern“ und „Per E-Mail senden“ öffnen das Android-Teilen-Menü (z. B. Gmail, Outlook). Die Mieter-E-Mail-Adresse wird dabei in die Zwischenablage kopiert.</p>
+<p><b>Android-Tasten verdecken etwas?</b> Unter <b>Gerät → Abstand unten</b> zusätzlichen Abstand wählen (+16 / +32 / +48, nur dieses Gerät).</p>
 <p class="tip"><b>Verlust des Tablets:</b> in Nextcloud (Einstellungen → Sicherheit) das App-Passwort des Tablets widerrufen bzw. im Microsoft-Konto die Sitzungen abmelden. Die Daten auf dem Gerät sind zusätzlich durch PIN-Sperre und Android-Verschlüsselung geschützt.</p>`},
 {id:"darstellung",title:"Anzeigegröße & Bildschirm",html:`
 <p>Oben rechts <b>Aa</b>: <b>Automatisch</b> (Standard – passt die Größe an Bildschirm bzw. Fenster an), <b>Kompakt</b> (85 %), <b>Normal</b>, <b>Groß</b> (115 %). Die Wahl gilt nur für dieses Gerät.</p>

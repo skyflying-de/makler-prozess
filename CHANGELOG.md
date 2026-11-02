@@ -1,5 +1,28 @@
 # Changelog – Makler-Prozess
 
+## 2.4.0 – 2026-11-02
+Übergabeprotokoll erweitert: Zimmertürschlüssel, Anmerkungen/weitere Mängel, Sonstiges, Anleitungen, „+“-Menü je Raum; Platz für Android-Tasten.
+
+- **Freiraum unten** für die Android-Navigationstasten in Erfassung, Dialogen, Navigation und Seiten (Android-App und Browser-App); je Gerät zusätzlich „Abstand unten“ (Automatisch, +16, +32, +48) unter Gerät
+- **Fotos je Prüfpunkt:** eigene Zeile, Vorschaubilder umbrechend, „+ Foto“ bleibt immer erreichbar, Zähler „n Fotos“ – beliebig viele Fotos
+- **Zimmertürschlüssel** als Haken in jedem Raum (Standard aus), im Ausdruck beim Raum
+- **„+“-Menü je Raum** (Erfassung und Fallansicht): Anmerkung / weiterer Mangel · Sonstiges · Anleitung – vorbereitet für weitere Funktionen
+- **Anmerkungen / weitere Mängel** je Raum mit Typ, Text und Fotos; Mängel zählen in der Mängelübersicht und werden beim nächsten Protokoll zur Prüfung angeboten (übernehmen/behoben)
+- **Sonstiges:** neues Feld oberhalb von „Vereinbarte Nacharbeiten“ (Vorlage und offene Protokolle automatisch ergänzt); jederzeit als Popup über „+“ im Raum oder „+ Sonstiges“ in der Kopfzeile, neue Zeilen mit Raumbezug „[Küche] …“
+- **Anleitungen:** Block unter Unterlagen, Einträge per „+ Anleitung“ oder aus dem Raum (Raum vorbelegt) mit Bezeichnung, Raum, übergeben (Papier/digital/nicht übergeben) und Foto; im Ausdruck als Liste, Fotos in der Anlage; Chip im Protokollverlauf
+- Tests: neuer E2E-Test (32 Prüfungen), alle bisherigen Tests und Layoutprüfung (mit und ohne Zeiterfassung) grün
+
+## 2.3.0 – 2026-10-30
+Zeiterfassung büroweit abschaltbar; Räume je Objekt umbenennbar.
+
+- Einstellungen → neuer Reiter **Funktionen** (nur Admin): **Zeiterfassung Ein/Aus**, gilt für das ganze Büro und wird per Cloud-Sync auf alle Geräte verteilt
+- Beim Ausschalten werden laufende Aktionen nach Rückfrage gestoppt (mit Vermerk); bisherige Buchungen bleiben gespeichert und sind beim Wiedereinschalten sofort wieder da
+- Bei „Aus“ ausgeblendet: Laufend, Zeiterfassung, Leiste mit laufenden Aktionen, Fall-Reiter Aktivitäten und „Nachtragen“, „Aktion starten“ am Objekt, „Starten“ bei Terminen, „Zeit starten“ im Protokoll, Zeit-Auswertungen, Reiter Aktionen, Zeitspalten, Windows-Taskleisten-Zeit/Infobereich
+- Startseite ohne Zeiterfassung: Kennzahl **Offene Übergabeprotokolle** und Liste **Letzte Übergaben**
+- **Stunden manuell** je Fall (Leistung, Stunden, Satz aus dem Leistungskatalog) für die Abrechnungsarten Stunden und Courtage + Zusatzleistungen; bei eingeschalteter Zeiterfassung zusätzlich zu den gebuchten Zeiten
+- **Räume umbenennen**: am Objekt (Übergabe-Stammdaten, wird in noch nicht unterschriebene Protokolle übernommen) und im Protokoll (Stift am Raum bzw. „Umbenennen“ in der Erfassung); nach der Unterschrift wird die Umbenennung erkannt und kann ins Objekt übernommen werden
+- Tests: neuer E2E-Test Zeiterfassung aus/ein inkl. Abgleich auf zweites Gerät und Räume umbenennen (32 Prüfungen), bisherige Tests unverändert grün
+
 ## 2.2.0 – 2026-10-21
 Übergabe-Stammdaten am Objekt, vorbelegte Protokolle, Protokollverlauf; Darstellung für jedes Gerät; Windows-Taskleiste.
 

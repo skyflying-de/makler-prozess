@@ -131,7 +131,7 @@ function seed(){
   const ms=p.sections.find(s=>s.type==="meters");[["4711-02",'18.402 kWh'],["G-88123",'7.215 m³'],["W-5521",'412,6 m³'],["W-5522",'188,3 m³'],["",""],["HKV 1–6",'je 0 (neu)']].forEach(([nr,st2],i)=>{if(nr)ms.values[ms.items[i].id]={nr,stand:st2}});
   ms.values[ms.items[0].id].photos=[demoPhoto("Stromzähler 18.402 kWh","#3d4a5c")];
   const ks=p.sections.find(s=>s.type==="keys");[3,3,2,1,1,0].forEach((n,i)=>ks.values[ks.items[i].id]={n:String(n),note:i===1?"Sicherungskarte übergeben":""});
-  const gs=p.sections.filter(s=>s.type==="fields")[1];if(gs)gs.items.forEach(i=>{if(i.ftype==="bool")gs.values[i.id]="true";else gs.values[i.id]="Fuge Dusche erneuern (Vermieter), Termin bis 15.10."});
+  const gs=p.sections.filter(s=>s.type==="fields")[1];if(gs)gs.items.forEach(i=>{if(i.ftype==="bool")gs.values[i.id]="true";else if(/^vereinbart/i.test(i.label))gs.values[i.id]="Fuge Dusche erneuern (Vermieter), Termin bis 15.10.";else if(i.label==="Sonstiges")gs.values[i.id]="[Flur] Rauchwarnmelder neu gesetzt (Vermieter)"});
   p.status="signed";p.signMode="print";p.signedAt=now-9*DAY;p.signed=["Uebergabeprotokoll_DHH_Kumhausen_unterschrieben.pdf"];
   const upf=st.fields.rent.find(f=>f.label==="Übergabeprotokoll");c7.files[upf.id]=[...p.signed];
   return {settings:st,objects,cases,entries,tasks,protocols:[p],ui:{user:"u1"}};
@@ -201,14 +201,16 @@ function pop(anchor,items){document.querySelectorAll(".pop").forEach(p=>p.remove
 let VIEW="start",ARG=null,TAB="akt",OTAB="daten",SETTAB="fields",SETSCOPE="object",FILTER="all",MODE="board",WEEK=0,RTAB="ma",RPER="week",ROFF=0,RTYPE="sale",ZUSER="me";
 const NAV=[["start","Start","home"],["laufend","Laufend","play"],["objekte","Objekte","obj"],["faelle","Fälle","cases"],["kalender","Termine","cal"],["zeiten","Zeiterfassung","clock"],["auswertung","Auswertungen","chart"],null,["einstellungen","Einstellungen","cog"]];
 function go(v,a=null){VIEW=v;ARG=a;render();$("main").scrollTop=0}
-const navItems=()=>MOBILE?NAV.filter(n=>!n||n[0]!=="auswertung").map(n=>n&&n[0]==="einstellungen"?["einstellungen","Gerät","cog"]:n):NAV;
+const navItems=()=>(TT()?navItems0():navItems0().filter(n=>!n||(n[0]!=="laufend"&&n[0]!=="zeiten")));
+const navItems0=()=>MOBILE?NAV.filter(n=>!n||n[0]!=="auswertung").map(n=>n&&n[0]==="einstellungen"?["einstellungen","Gerät","cog"]:n):NAV;
 function renderNav(){
   $("#nav").innerHTML=navItems().map(n=>n?`<button class="${(VIEW===n[0]||(VIEW==="fall"&&n[0]==="faelle")||(VIEW==="objekt"&&n[0]==="objekte"))?"on":""}" onclick="go('${n[0]}')">${ic(n[2])}${n[1]}${n[0]==="laufend"&&running().length?`<span class="nbadge">${running().length}</span>`:""}${n[0]==="einstellungen"&&!isAdmin()&&!MOBILE?ic("lock",'style="width:13px;margin-left:auto"'):""}</button>`:'<div class="sep"></div>').join("");
   renderUserbox();
 }
 
 /* ================= Laufleiste ================= */
-const running=()=>DB.entries.filter(e=>!e.end).sort((a,b)=>a.start-b.start);
+const TT=()=>!DB||!DB.settings||DB.settings.timeTracking!==false; // Zeiterfassung büroweit an/aus (Einstellungen → Funktionen)
+const running=()=>TT()?DB.entries.filter(e=>!e.end).sort((a,b)=>a.start-b.start):[];
 function runCtl(e,{open=true,edit=true}={}){return `${e.pauseAt?`<button class="ib solid" title="Fortsetzen" aria-label="Fortsetzen" onclick="event.stopPropagation();resumeE('${e.id}')">${ic("play")}</button>`:`<button class="ib solid" title="Pause" aria-label="Pause" onclick="event.stopPropagation();pauseE('${e.id}')">${ic("pause")}</button>`}
   <button class="ib solid" title="Leistung wechseln" aria-label="Leistung wechseln" onclick="event.stopPropagation();switchSvc('${e.id}',this)">${ic("swap")}</button>
   <button class="ib solid" title="Stopp" aria-label="Stopp" onclick="event.stopPropagation();stopE('${e.id}')">${ic("stop")}</button>
@@ -218,6 +220,7 @@ function openRun(eid){const e=DB.entries.find(x=>x.id===eid);if(!e)return;TAB="a
 let FLASH=null;
 function renderDock(){
   const all=running(),mine=all.filter(e=>e.userId===DB.ui.user),others=all.filter(e=>e.userId!==DB.ui.user);
+  if(!TT()){$("#dock").innerHTML=`<b class="dockttl">${esc(DB.settings.design&&DB.settings.design.company||"Makler-Prozess")}</b><div class="sp"></div>${typeof syPillHTML==="function"?syPillHTML():""}${MOBILE?`<button class="userchip" onclick="lockNow()" title="Gerät sperren">${av(DB.ui.user)}${ic("lock")}</button>`:""}<button class="ib solid" title="Anzeigegröße" aria-label="Anzeigegröße" onclick="zoomMenu(this)" style="font-weight:700">Aa</button><button class="ib solid helpbtn" title="Hilfe (F1)" aria-label="Hilfe" onclick="help()">?</button>`;return}
   let h=`<span class="lbl">Läuft bei mir</span>`;
   if(!mine.length)h+=`<span class="muted" style="font-size:13px">Keine Aktion aktiv</span>`;
   mine.forEach(e=>{const c=caseBy(e.caseId),a=actBy(c.type,e.actionId);
@@ -231,6 +234,7 @@ setInterval(()=>{document.querySelectorAll("[data-e]").forEach(el=>{const e=DB.e
 
 /* ================= Zeitbuchung ================= */
 function startAction(caseId,actionId,serviceId,note=""){
+  if(!TT()){toast("Zeiterfassung ist ausgeschaltet (Einstellungen → Funktionen).");return}
   const c=caseBy(caseId),a=actBy(c.type,actionId);
   DB.entries.push({id:uid(),caseId,actionId,serviceId:serviceId||a.def,userId:DB.ui.user,start:Date.now(),end:null,pause:0,pauseAt:null,note,createdBy:DB.ui.user,history:[]});
   if(c.stage<2&&a.stage>=2)setStageRaw(c,2);
@@ -248,6 +252,7 @@ function switchSvc(id,btn){const e=DB.entries.find(x=>x.id===id),c=caseBy(e.case
 
 /* Schnellerfassung: starten ODER nachtragen; Auswahl über Fall oder Objekt */
 function quick(pre={}){
+  if(!TT()){toast("Zeiterfassung ist ausgeschaltet (Einstellungen → Funktionen).");return}
   const open=DB.cases.filter(c=>c.stage<4);
   let cid=pre.caseId||(DB.ui.lastCase&&caseBy(DB.ui.lastCase)&&caseBy(DB.ui.lastCase).stage<4?DB.ui.lastCase:open[0]?.id);
   const ov=modal("Aktion erfassen",`<div class="seg" style="margin-bottom:12px" id="qm"><button class="on" data-m="start">Jetzt starten</button><button data-m="doc">Erledigte Aktion nachtragen</button></div>
@@ -319,31 +324,31 @@ function editTask(id,pre={}){
   const ov=modal(id?(t.kind==="termin"?"Termin":"Wiedervorlage"):"Neu: Termin / Wiedervorlage",`<div class="seg" style="margin-bottom:12px" id="tk"><button data-k="termin" class="${t.kind==="termin"?"on":""}">Termin</button><button data-k="wv" class="${t.kind==="wv"?"on":""}">Wiedervorlage</button></div>
    <div class="form"><label>Fall</label><select name="case">${open.map(c=>`<option value="${c.id}" ${c.id===t.caseId?"selected":""}>${c.no} · ${esc(c.title)}</option>`).join("")}</select>
    <label>Betreff</label><input name="title" value="${esc(t.title)}" placeholder="z. B. Besichtigung Fam. Lorenz">
-   <label class="tk-t">Geplante Aktion</label><select class="tk-t" name="action"></select>
+   ${TT()?`<label class="tk-t">Geplante Aktion</label><select class="tk-t" name="action"></select>`:""}
    <label>Datum / Uhrzeit</label><div style="display:flex;gap:8px"><input type="date" name="date" value="${isoD(t.due)}"><input type="time" name="time" value="${isoT(t.due)}"></div>
    <label class="tk-t">Dauer (Min.)</label><input class="tk-t" type="number" name="dur" min="0" step="15" value="${t.dur}">
    <label>Zuständig</label><select name="user">${DB.settings.users.map(u=>`<option value="${u.id}" ${u.id===t.userId?"selected":""}>${esc(u.name)}</option>`).join("")}</select>
    <label>Notiz</label><input name="note" value="${esc(t.note)}"><label>Erledigt</label><div><input type="checkbox" class="sw" name="done" ${t.done?"checked":""}></div></div>
    <div class="hint" style="margin-top:8px">Outlook-Anbindung ist für eine spätere Ausbaustufe vorgesehen.</div>`,
   {wide:true,del:id?"Löschen":null,onDel:()=>{DB.tasks=DB.tasks.filter(x=>x.id!==id)},
-   extra:id&&t.kind==="termin"&&!t.done&&t.actionId?`<button class="btn ok" data-x="go">${ic("play")}Jetzt starten</button>`:"",
+   extra:id&&t.kind==="termin"&&!t.done&&t.actionId&&TT()?`<button class="btn ok" data-x="go">${ic("play")}Jetzt starten</button>`:"",
    onOk:ov=>{if(!v(ov,"title").trim())throw new Error("Bitte einen Betreff eingeben.");
-     const n={...t,id:t.id||uid(),kind:ov.dataset.k,caseId:v(ov,"case"),title:v(ov,"title").trim(),actionId:ov.dataset.k==="termin"?(v(ov,"action")||null):null,
+     const n={...t,id:t.id||uid(),kind:ov.dataset.k,caseId:v(ov,"case"),title:v(ov,"title").trim(),actionId:ov.dataset.k==="termin"?(TT()?(v(ov,"action")||null):t.actionId):null,
        due:new Date(v(ov,"date")+"T"+(v(ov,"time")||"09:00")).getTime(),dur:+v(ov,"dur")||0,userId:v(ov,"user"),note:v(ov,"note"),done:v(ov,"done")};
      if(id)Object.assign(t,n);else DB.tasks.push(n);toast("Gespeichert")}});
   const setK=k=>{ov.dataset.k=k;ov.querySelectorAll("#tk button").forEach(b=>b.classList.toggle("on",b.dataset.k===k));ov.querySelectorAll(".tk-t").forEach(el=>el.style.display=k==="termin"?"":"none")};
   ov.querySelectorAll("#tk button").forEach(b=>b.onclick=()=>setK(b.dataset.k));setK(t.kind);
-  const fillA=()=>{const c=caseBy(v(ov,"case"));ov.querySelector("[name=action]").innerHTML=`<option value="">– keine –</option>`+DB.settings.actions[c.type].filter(a=>a.active).map(a=>`<option value="${a.id}" ${a.id===t.actionId?"selected":""}>${esc(a.name)}</option>`).join("")};
+  const fillA=()=>{const c=caseBy(v(ov,"case"));if(!ov.querySelector("[name=action]"))return;ov.querySelector("[name=action]").innerHTML=`<option value="">– keine –</option>`+DB.settings.actions[c.type].filter(a=>a.active).map(a=>`<option value="${a.id}" ${a.id===t.actionId?"selected":""}>${esc(a.name)}</option>`).join("")};
   ov.querySelector("[name=case]").onchange=fillA;fillA();
   const g=ov.querySelector("[data-x=go]");if(g)g.onclick=()=>{ov.close();runTask(id)};
 }
-function runTask(id){const t=DB.tasks.find(x=>x.id===id);t.done=true;if(t.actionId)startAction(t.caseId,t.actionId,null,t.title);else{save();render()}}
+function runTask(id){const t=DB.tasks.find(x=>x.id===id);t.done=true;if(t.actionId&&TT())startAction(t.caseId,t.actionId,null,t.title);else{save();render()}}
 function toggleTask(id){const t=DB.tasks.find(x=>x.id===id);t.done=!t.done;save();render()}
 function taskRow(t,showCase=true){const c=caseBy(t.caseId),over=!t.done&&t.due<Date.now()-(t.kind==="wv"?DAY:0);
   return `<div class="task ${t.done?"done":""} ${over?"over":""}"><input type="checkbox" ${t.done?"checked":""} onchange="toggleTask('${t.id}')" aria-label="Erledigt">
    <div class="tt" style="cursor:pointer" onclick="editTask('${t.id}')"><span class="tag ${t.kind==="termin"?"sale":"warn"}">${t.kind==="termin"?"Termin":"Wiedervorlage"}</span> <b>${esc(t.title)}</b>
    <div class="hint"><span class="due">${dshort(t.due)}${t.kind==="termin"?" "+tm(t.due):""}${over?" · überfällig":""}</span>${showCase?` · <a href="#" onclick="TAB='akt';go('fall','${c.id}');return false">${c.no} ${esc(c.title)}</a>`:""}</div></div>
-   <div style="display:flex;gap:6px;align-items:center">${av(t.userId)}${t.kind==="termin"&&!t.done&&t.actionId?`<button class="btn sm ok" onclick="runTask('${t.id}')">${ic("play")}Starten</button>`:""}</div></div>`}
+   <div style="display:flex;gap:6px;align-items:center">${av(t.userId)}${t.kind==="termin"&&!t.done&&t.actionId&&TT()?`<button class="btn sm ok" onclick="runTask('${t.id}')">${ic("play")}Starten</button>`:""}</div></div>`}
 
 /* ================= Start ================= */
 function vStart(){
@@ -354,14 +359,20 @@ function vStart(){
   return `<div class="top"><h1>Hallo ${esc(ME().name.split(" ")[0])}</h1><span class="muted">${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</span><div class="sp"></div>
   <button class="btn" onclick="newObject()">${ic("plus")}Neues Objekt</button><button class="btn pri" onclick="newCase()">${ic("plus")}Neuer Auftrag</button></div>
   <div class="kpis"><div class="kpi"><div class="l">Offene Fälle</div><div class="v">${open.length}</div><div class="s">${open.filter(c=>c.type==="sale").length} Verkauf · ${open.filter(c=>c.type==="rent").length} Vermietung</div></div>
-  <div class="kpi"><div class="l">Meine Zeit diese Woche</div><div class="v">${hm(myWeek)} h</div><div class="s">${DB.entries.filter(e=>e.userId===me&&e.start>=wk).length} Buchungen</div></div>
+  ${TT()?`<div class="kpi"><div class="l">Meine Zeit diese Woche</div><div class="v">${hm(myWeek)} h</div><div class="s">${DB.entries.filter(e=>e.userId===me&&e.start>=wk).length} Buchungen</div></div>`
+   :(()=>{const op=DB.protocols.filter(p=>p.status!=="signed");return `<div class="kpi click" onclick="go('faelle')"><div class="l">Offene Übergabeprotokolle</div><div class="v">${op.length}</div><div class="s">${op.filter(p=>p.status==="ready").length} warten auf Unterschrift</div></div>`})()}
   <div class="kpi"><div class="l">Meine offenen Wiedervorlagen</div><div class="v">${DB.tasks.filter(t=>t.userId===me&&!t.done&&t.kind==="wv").length}</div><div class="s">${DB.tasks.filter(t=>t.userId===me&&!t.done&&t.due<Date.now()&&t.kind==="wv").length} überfällig</div></div>
   <div class="kpi"><div class="l">Zur Abrechnung</div><div class="v">${toBill.length}</div><div class="s">Fälle in Phase 5</div></div></div>
   ${running().length?`<div class="card"><h2>${ic("play",'style="width:15px;color:var(--ok)"')}Gerade aktiv im Büro<span class="sp"></span><button class="btn sm" onclick="go('laufend')">Alle anzeigen</button></h2><div class="rgrid">${running().slice(0,6).map(runCard).join("")}</div></div>`:""}
   <div class="two"><div class="card"><h2>${ic("bell",'style="width:17px"')}Meine Termine & Wiedervorlagen<span class="sp"></span><span class="hint">heute, morgen, überfällig</span></h2>${myTasks.map(t=>taskRow(t)).join("")||'<div class="empty">Nichts fällig.</div>'}
    <div style="margin-top:10px;display:flex;gap:8px"><button class="btn sm" onclick="editTask(null,{kind:'termin'})">${ic("plus")}Termin</button><button class="btn sm" onclick="editTask(null,{kind:'wv'})">${ic("plus")}Wiedervorlage</button><div class="sp"></div><button class="btn sm" onclick="go('kalender')">Wochenansicht</button></div></div>
-  <div class="card"><h2>Zuletzt erfasst</h2><div class="timeline">${DB.entries.slice().sort((a,b)=>b.start-a.start).slice(0,7).map(e=>{const c=caseBy(e.caseId);return `<div class="it"><div class="d">${dt(e.start)}<br>${tm(e.start)}</div><div><b>${esc(actBy(c.type,e.actionId).name)}</b><div class="hint">${esc(svcBy(e.serviceId).name)} · <a href="#" onclick="TAB='akt';go('fall','${c.id}');return false">${c.no}</a></div></div><div style="text-align:right">${av(e.userId)}<br><b>${e.end?hm(net(e)):'<span class="tag ok">läuft</span>'}</b></div></div>`}).join("")}</div></div></div>`;
+  ${TT()?`<div class="card"><h2>Zuletzt erfasst</h2><div class="timeline">${DB.entries.slice().sort((a,b)=>b.start-a.start).slice(0,7).map(e=>{const c=caseBy(e.caseId);return `<div class="it"><div class="d">${dt(e.start)}<br>${tm(e.start)}</div><div><b>${esc(actBy(c.type,e.actionId).name)}</b><div class="hint">${esc(svcBy(e.serviceId).name)} · <a href="#" onclick="TAB='akt';go('fall','${c.id}');return false">${c.no}</a></div></div><div style="text-align:right">${av(e.userId)}<br><b>${e.end?hm(net(e)):'<span class="tag ok">läuft</span>'}</b></div></div>`}).join("")}</div></div>`:startProtos()}</div>`;
 }
+
+function startProtos(){ // Startseite ohne Zeiterfassung: letzte Übergaben
+  const ps=DB.protocols.slice().sort((a,b)=>b.date-a.date).slice(0,7);
+  return `<div class="card"><h2>${ic("doc",'style="width:17px"')}Letzte Übergaben</h2><div class="timeline">${ps.map(p=>{const c=caseBy(p.caseId),o=c&&objBy(c.objectId);if(!c||!o)return"";const d=hoDefects(p).length;
+    return `<div class="it click" onclick="hoOpen('${p.id}')"><div class="d">${dt(p.date)}</div><div><b>${esc(p.kind)} · ${esc(o.title)}</b><div class="hint">${esc(p.no)} · ${c.no}${d?` · <span style="color:var(--bad)">${d===1?"1 Mangel":d+" Mängel"}</span>`:""}</div></div><div style="text-align:right"><span class="tag ${PSTAT[p.status][1]}">${PSTAT[p.status][0]}</span></div></div>`}).join("")||'<div class="empty">Noch keine Übergabeprotokolle.</div>'}</div></div>`}
 
 /* ================= Objekte ================= */
 function newObject(){
@@ -375,18 +386,18 @@ function vObjekte(){
   <div class="card"><table><tr><th>Nr.</th><th>Objekt</th><th>Art</th><th class="r">Fläche</th><th>Fälle</th><th>Daten</th><th></th></tr>${DB.objects.map(o=>{const cs=DB.cases.filter(c=>c.objectId===o.id);const pc=Math.round(completeness(o,"object")*100);
    return `<tr class="click" onclick="OTAB='daten';go('objekt','${o.id}')"><td>${o.no}</td><td><b>${esc(o.title)}</b><div class="hint">${esc(objVal(o,"Adresse"))}</div></td><td class="muted">${esc(objVal(o,"Objektart"))}</td><td class="r">${objVal(o,"Wohnfläche (m²)")?esc(objVal(o,"Wohnfläche (m²)"))+" m²":""}</td>
    <td><div class="chips">${cs.map(c=>`<span class="tag ${c.type}${c.stage===4?" grey":""}">${c.no}</span>`).join("")}</div></td><td style="width:110px"><div class="progress"><i style="width:${pc}%"></i></div><span class="hint">${pc} % Pflicht</span></td>
-   <td class="r" onclick="event.stopPropagation()"><button class="btn sm" onclick="startFromObject('${o.id}')">${ic("play")}Aktion</button></td></tr>`}).join("")}</table></div>`;
+   <td class="r" onclick="event.stopPropagation()">${TT()?`<button class="btn sm" onclick="startFromObject('${o.id}')">${ic("play")}Aktion</button>`:""}</td></tr>`}).join("")}</table></div>`;
 }
 function vObjekt(){
   const o=objBy(ARG);if(!o)return vObjekte();
   const cs=DB.cases.filter(c=>c.objectId===o.id).sort((a,b)=>b.created-a.created);
   let h=`<div class="top"><button class="ib" onclick="go('objekte')" aria-label="Zurück">${ic("back")}</button><h1>${esc(o.title)}</h1><span class="muted">${o.no}</span><div class="sp"></div>
-   <button class="btn" onclick="startFromObject('${o.id}')">${ic("play")}Aktion starten</button><button class="btn" onclick="newCase('rent','${o.id}')">${ic("plus")}Vermietung</button><button class="btn pri" onclick="newCase('sale','${o.id}')">${ic("plus")}Verkauf</button></div>
+   ${TT()?`<button class="btn" onclick="startFromObject('${o.id}')">${ic("play")}Aktion starten</button>`:""}<button class="btn" onclick="newCase('rent','${o.id}')">${ic("plus")}Vermietung</button><button class="btn pri" onclick="newCase('sale','${o.id}')">${ic("plus")}Verkauf</button></div>
    ${typeof hoLastBar==="function"?hoLastBar(o):""}
    <div class="tabs">${[["daten","Objektdaten"],["faelle",`Fälle (${cs.length})`],["uebergabe","Übergabe"]].map(([k,l])=>`<button class="${OTAB===k?"on":""}" onclick="OTAB='${k}';render()">${l}</button>`).join("")}</div>`;
   if(OTAB==="daten")h+=dataForm(o,"object");
   else if(OTAB==="uebergabe")h+=hoObjTab(o);
-  else h+=`<div class="card">${cs.length?`<table><tr><th>Nr.</th><th>Art</th><th>Fall</th><th>Phase</th><th>Abrechnung</th><th class="r">Zeit</th></tr>${cs.map(c=>`<tr class="click" onclick="TAB='akt';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span></td><td><b>${esc(c.title)}</b><div class="hint">${esc(c.client)}</div></td><td>${STAGES[c.stage]}</td><td class="muted">${BILL[c.billing].split(" (")[0]}</td><td class="r">${hm(sumNet(caseEntries(c.id)))}</td></tr>`).join("")}</table>`:'<div class="empty">Noch keine Fälle zu diesem Objekt.</div>'}</div>`;
+  else h+=`<div class="card">${cs.length?`<table><tr><th>Nr.</th><th>Art</th><th>Fall</th><th>Phase</th><th>Abrechnung</th>${TT()?'<th class="r">Zeit</th>':""}</tr>${cs.map(c=>`<tr class="click" onclick="TAB='akt';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span></td><td><b>${esc(c.title)}</b><div class="hint">${esc(c.client)}</div></td><td>${STAGES[c.stage]}</td><td class="muted">${BILL[c.billing].split(" (")[0]}</td>${TT()?`<td class="r">${hm(sumNet(caseEntries(c.id)))}</td>`:""}</tr>`).join("")}</table>`:'<div class="empty">Noch keine Fälle zu diesem Objekt.</div>'}</div>`;
   return h;
 }
 
@@ -440,7 +451,7 @@ function vFaelle(){
   <div class="seg">${[["board","Phasen"],["list","Liste"]].map(([k,l])=>`<button class="${MODE===k?"on":""}" onclick="MODE='${k}';render()">${l}</button>`).join("")}</div><div class="sp"></div><button class="btn pri" onclick="newCase()">${ic("plus")}Neuer Auftrag</button></div>`;
   if(MODE==="board")h+=`<div class="board">${STAGES.map((s,i)=>{const cs=list.filter(c=>c.stage===i);return `<div class="col"><h3>${s}<span>${cs.length}</span></h3>${cs.map(c=>{const E=caseEntries(c.id),r=E.some(e=>!e.end),wv=DB.tasks.filter(t=>t.caseId===c.id&&!t.done).length;
       return `<div class="cc" style="--c:var(--${c.type})" onclick="TAB='akt';go('fall','${c.id}')"><div class="t">${esc(c.title)}</div><div class="hint">${esc(objBy(c.objectId).no)} · ${esc(c.client)}</div><div class="m"><span>${av(c.owner)} ${c.no}</span><span>${r?'<span class="tag ok">läuft</span> ':""}${wv?`<span class="tag warn">${wv}</span> `:""}${hm(sumNet(E))} h</span></div>${i===1?`<div class="progress" style="margin-top:6px"><i style="width:${Math.round(completeness(c,c.type)*100)}%"></i></div>`:""}</div>`}).join("")||'<div class="hint" style="padding:6px">–</div>'}</div>`}).join("")}</div>`;
-  else h+=`<div class="card"><table><tr><th>Nr.</th><th>Art</th><th>Fall</th><th>Objekt</th><th>Phase</th><th>Zuständig</th><th>Abrechnung</th><th class="r">Zeit</th></tr>${list.map(c=>`<tr class="click" onclick="TAB='akt';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span></td><td><b>${esc(c.title)}</b></td><td class="muted">${objBy(c.objectId).no}</td><td>${STAGES[c.stage]}</td><td>${av(c.owner)}</td><td class="muted">${BILL[c.billing].split(" (")[0]}</td><td class="r">${hm(sumNet(caseEntries(c.id)))}</td></tr>`).join("")}</table></div>`;
+  else h+=`<div class="card"><table><tr><th>Nr.</th><th>Art</th><th>Fall</th><th>Objekt</th><th>Phase</th><th>Zuständig</th><th>Abrechnung</th>${TT()?'<th class="r">Zeit</th>':""}</tr>${list.map(c=>`<tr class="click" onclick="TAB='akt';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span></td><td><b>${esc(c.title)}</b></td><td class="muted">${objBy(c.objectId).no}</td><td>${STAGES[c.stage]}</td><td>${av(c.owner)}</td><td class="muted">${BILL[c.billing].split(" (")[0]}</td>${TT()?`<td class="r">${hm(sumNet(caseEntries(c.id)))}</td>`:""}</tr>`).join("")}</table></div>`;
   return h;
 }
 
@@ -452,13 +463,14 @@ function setStage(id,i){const c=caseBy(id);
 function vFall(){
   const c=caseBy(ARG);if(!c)return vFaelle();
   if(MOBILE&&TAB==="abr")TAB="akt";
+  if(!TT()&&TAB==="akt")TAB="termine";
   DB.ui.lastCase=c.id;const o=objBy(c.objectId);
   const E=caseEntries(c.id),tot=sumNet(E),tasks=DB.tasks.filter(t=>t.caseId===c.id).sort((a,b)=>a.done-b.done||a.due-b.due);
   let h=`<div class="top"><button class="ib" onclick="go('faelle')" aria-label="Zurück">${ic("back")}</button><span class="tag ${c.type}">${TYPES[c.type]}</span><h1>${esc(c.title)}</h1>
    <span class="muted">${c.no} · <a href="#" onclick="OTAB='daten';go('objekt','${o.id}');return false">${o.no} ${esc(o.title)}</a> · ${esc(c.client)}</span>${av(c.owner)}<div class="sp"></div>
-   <button class="btn" onclick="quick({caseId:'${c.id}',mode:'doc'})">${ic("doc")}Nachtragen</button><button class="btn" onclick="editTask(null,{caseId:'${c.id}'})">${ic("cal")}Termin / WV</button></div>
+   ${TT()?`<button class="btn" onclick="quick({caseId:'${c.id}',mode:'doc'})">${ic("doc")}Nachtragen</button>`:""}<button class="btn" onclick="editTask(null,{caseId:'${c.id}'})">${ic("cal")}Termin / WV</button></div>
    <div class="steps">${STAGES.map((s,i)=>`<button class="step ${i<c.stage?"done":i===c.stage?"cur":""}" onclick="setStage('${c.id}',${i})"><b>${i+1}${c.stageDates&&c.stageDates[i]?" · "+dt(c.stageDates[i]):""}</b>${s}</button>`).join("")}</div>
-   <div class="tabs">${[["akt","Aktivitäten"],["termine",`Termine & Wiedervorlagen (${tasks.filter(t=>!t.done).length})`],["daten","Falldaten"],["obj","Objektdaten"],...(c.type==="rent"?[["proto",`Übergabeprotokoll${(()=>{const ps=DB.protocols.filter(p=>p.caseId===c.id);return ps.length?" "+(ps.some(p=>p.status==="signed")?"✓":"("+ps.length+")"):""})()}`]]:[]),...(MOBILE?[]:[["abr","Abschluss & Abrechnung"]])].map(([k,l])=>`<button class="${TAB===k?"on":""}" onclick="TAB='${k}';render()">${l}</button>`).join("")}</div>`;
+   <div class="tabs">${[...(TT()?[["akt","Aktivitäten"]]:[]),["termine",`Termine & Wiedervorlagen (${tasks.filter(t=>!t.done).length})`],["daten","Falldaten"],["obj","Objektdaten"],...(c.type==="rent"?[["proto",`Übergabeprotokoll${(()=>{const ps=DB.protocols.filter(p=>p.caseId===c.id);return ps.length?" "+(ps.some(p=>p.status==="signed")?"✓":"("+ps.length+")"):""})()}`]]:[]),...(MOBILE?[]:[["abr","Abschluss & Abrechnung"]])].map(([k,l])=>`<button class="${TAB===k?"on":""}" onclick="TAB='${k}';render()">${l}</button>`).join("")}</div>`;
   if(TAB==="akt"){
     const counts={};E.forEach(e=>counts[e.actionId]=(counts[e.actionId]||0)+1);
     const acts=DB.settings.actions[c.type].filter(a=>a.active);
@@ -468,7 +480,7 @@ function vFall(){
      <div class="card"><h2>Verlauf<span class="sp"></span><span class="tag grey">${hm(tot)} h</span></h2><div class="timeline">${E.map(e=>`<div class="it"><div class="d">${dt(e.start)}<br>${tm(e.start)}${e.end?"–"+tm(e.end):""}</div><div><b>${esc(actBy(c.type,e.actionId).name)}</b><div class="hint">${esc(svcBy(e.serviceId).name)}${e.history.length?" · geändert":""}</div>${e.note?`<div class="hint">${esc(e.note)}</div>`:""}</div><div style="text-align:right">${av(e.userId)} ${e.end?`<b>${hm(net(e))}</b>`:`<span class="tag ${e.pauseAt?"warn":"ok"}">${e.pauseAt?"Pause":"läuft"}</span>`}<br><button class="ib" aria-label="Bearbeiten" onclick="editEntry('${e.id}')">${ic("edit")}</button></div></div>`).join("")||'<div class="empty">Noch keine Aktionen. Links eine Aktion starten.</div>'}</div></div></div></div>`;
   }else if(TAB==="termine"){
     h+=`<div class="card"><h2>Termine & Wiedervorlagen<span class="sp"></span><button class="btn sm" onclick="editTask(null,{caseId:'${c.id}',kind:'termin'})">${ic("plus")}Termin</button><button class="btn sm" onclick="editTask(null,{caseId:'${c.id}',kind:'wv'})">${ic("plus")}Wiedervorlage</button></h2>${tasks.map(t=>taskRow(t,false)).join("")||'<div class="empty">Keine Termine oder Wiedervorlagen.</div>'}
-     <div class="hint" style="margin-top:10px">Ein Termin mit geplanter Aktion lässt sich mit „Starten“ direkt in eine Zeitbuchung umwandeln.</div></div>`;
+     ${TT()?`<div class="hint" style="margin-top:10px">Ein Termin mit geplanter Aktion lässt sich mit „Starten“ direkt in eine Zeitbuchung umwandeln.</div>`:""}</div>`;
   }else if(TAB==="daten"){
     h+=dataForm(c,c.type);
     if(c.stage===1)h+=`<div style="display:flex;justify-content:flex-end"><button class="btn pri" onclick="setStage('${c.id}',2)">Datenaufnahme abschließen → Durchführung</button></div>`;
@@ -483,8 +495,9 @@ function vFall(){
 
 /* ================= Abrechnung / Leistungsnachweis ================= */
 function caseBilling(c){
-  const E=caseEntries(c.id).filter(e=>e.end),rows={};
+  const E=TT()?caseEntries(c.id).filter(e=>e.end):[],rows={};
   E.forEach(e=>{rows[e.serviceId]=(rows[e.serviceId]||0)+net(e)});
+  (c.manual||[]).forEach(m=>{const h=num(m.h);if(h>0&&m.serviceId)rows[m.serviceId]=(rows[m.serviceId]||0)+h*3600000});
   const lines=Object.entries(rows).map(([s,ms])=>{const sv=svcBy(s);const billed=c.billing==="hours"?sv.billable:c.billing==="mixed"?c.extra.includes(s):false;
     return {id:s,name:sv.name,h:ms/3600000,rate:sv.rate,billable:sv.billable,billed,amount:billed?ms/3600000*sv.rate:0}}).sort((a,b)=>b.h-a.h);
   const byAct={};E.forEach(e=>{const a=actBy(c.type,e.actionId).name;byAct[a]=byAct[a]||{n:0,ms:0};byAct[a].n++;byAct[a].ms+=net(e)});
@@ -503,14 +516,47 @@ function billing(c){
    ${c.billing==="mixed"?`<label>Zusätzlich berechnen</label><div class="checks">${b.lines.map(l=>`<label><input type="checkbox" ${c.extra.includes(l.id)?"checked":""} onchange="toggleExtra('${c.id}','${l.id}',this.checked)">${esc(l.name)}</label>`).join("")||'<span class="hint">Noch keine Leistungen erfasst.</span>'}</div>`:""}</div></div>
   <div class="card" id="rep"><h2>Leistungsnachweis ${c.no}<span class="sp"></span><button class="btn sm noprint" onclick="printReport('${c.id}')">${ic("print")}Drucken / PDF (Firmendesign)</button></h2>
    <div class="hint" style="margin-bottom:10px">${esc(c.title)} · ${TYPES[c.type]} · Objekt ${o.no} ${esc(o.title)} · Auftraggeber ${esc(c.client)} · ${c.closed?"Abschluss "+dt(c.closed):"noch nicht abgeschlossen"} · Abrechnung: ${BILL[c.billing]}</div>
-   <div class="kpis"><div class="kpi"><div class="l">Erfasste Zeit</div><div class="v">${hd(b.hours*3600000)} h</div><div class="s">${b.E.length} Buchungen</div></div>
+   ${manualCard(c)}
+   <div class="kpis"><div class="kpi"><div class="l">${TT()?"Erfasste Zeit":"Stunden (manuell)"}</div><div class="v">${hd(b.hours*3600000)} h</div><div class="s">${TT()?b.E.length+" Buchungen"+((c.manual||[]).length?" + "+(c.manual||[]).length+" manuell":""):(c.manual||[]).length+" Einträge"}</div></div>
    ${c.billing!=="hours"&&c.billing!=="flat"?`<div class="kpi"><div class="l">Courtage</div><div class="v">${eur(b.courtage)}</div><div class="s">${esc(b.cText)}</div></div>`:""}
    ${c.billing==="hours"||c.billing==="mixed"?`<div class="kpi"><div class="l">${c.billing==="mixed"?"Zusatzleistungen":"Leistungswert"}</div><div class="v">${eur(b.svcSum)}</div><div class="s">nach Stundensätzen</div></div>`:""}
-   <div class="kpi"><div class="l">Abrechnungsbetrag (netto)</div><div class="v" style="color:var(--acc)">${eur(b.total)}</div><div class="s">${c.billing==="courtage"?"Zeiten nur als Nachweis":c.billing==="flat"?"Pauschale":""}</div></div></div>
+   <div class="kpi"><div class="l">Abrechnungsbetrag (netto)</div><div class="v" style="color:var(--acc)">${eur(b.total)}</div><div class="s">${c.billing==="courtage"?(TT()?"Zeiten nur als Nachweis":"Courtage"):c.billing==="flat"?"Pauschale":""}</div></div></div>
    <table><tr><th>Leistung</th><th class="r">Stunden</th>${c.billing==="courtage"||c.billing==="flat"?"":`<th class="r">Satz</th><th class="r">Betrag</th>`}</tr>${b.lines.map(l=>`<tr><td>${esc(l.name)}${(c.billing==="hours"&&!l.billable)||(c.billing==="mixed"&&!l.billed)?' <span class="tag grey">nicht berechnet</span>':""}</td><td class="r">${l.h.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>${c.billing==="courtage"||c.billing==="flat"?"":`<td class="r">${eur(l.rate)}</td><td class="r"><b>${eur(l.amount)}</b></td>`}</tr>`).join("")}
    <tr><td><b>Summe</b></td><td class="r"><b>${b.hours.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td>${c.billing==="courtage"||c.billing==="flat"?"":`<td></td><td class="r"><b>${eur(b.svcSum)}</b></td>`}</tr></table>
-   <h2 style="margin-top:18px">Tätigkeitsnachweis</h2><table><tr><th>Datum</th><th>Aktion</th><th>Leistung</th><th>MA</th><th class="r">Zeit</th></tr>${b.E.slice().reverse().map(e=>`<tr><td>${dt(e.start)}</td><td>${esc(actBy(c.type,e.actionId).name)}${e.note?`<div class="hint">${esc(e.note)}</div>`:""}</td><td class="muted">${esc(svcBy(e.serviceId).name)}</td><td>${userBy(e.userId).short}</td><td class="r">${hm(net(e))}</td></tr>`).join("")}</table></div>`;
+   ${TT()?`<h2 style="margin-top:18px">Tätigkeitsnachweis</h2>`:""}<table${TT()?"":' style="display:none"'}><tr><th>Datum</th><th>Aktion</th><th>Leistung</th><th>MA</th><th class="r">Zeit</th></tr>${b.E.slice().reverse().map(e=>`<tr><td>${dt(e.start)}</td><td>${esc(actBy(c.type,e.actionId).name)}${e.note?`<div class="hint">${esc(e.note)}</div>`:""}</td><td class="muted">${esc(svcBy(e.serviceId).name)}</td><td>${userBy(e.userId).short}</td><td class="r">${hm(net(e))}</td></tr>`).join("")}</table></div>`;
 }
+/* ================= Einstellungen → Funktionen ================= */
+function vFunktionen(){
+  const on=TT(),run=DB.entries.filter(e=>!e.end),nE=DB.entries.length;
+  return `<div class="card" id="fn-tt"><h2>${ic("clock",'style="width:17px"')}Zeiterfassung<span class="sp"></span><div class="seg"><button class="${on?"on":""}" onclick="setTimeTracking(true)">Ein</button><button class="${on?"":"on"}" onclick="setTimeTracking(false)">Aus</button></div></h2>
+   <p class="hint" style="margin-top:0">${on?"Aktionen mit Start/Pause/Stopp, „Laufend“, Zeiterfassung, Auswertungen nach Zeit und Abrechnung nach gebuchten Stunden.":"Keine Stoppuhr: „Laufend“, „Zeiterfassung“, Aktivitäten im Fall, Zeit-Auswertungen und die Zeitanzeige in der Taskleiste sind ausgeblendet. Für die Abrechnung nach Stunden werden Stunden im Fall manuell eingetragen."}</p>
+   <div class="ro"><span>Gilt für</span><span>das ganze Büro – alle Geräte (über Cloud-Sync)</span><span>Gespeicherte Buchungen</span><span>${nE} ${on?"":"– bleiben erhalten und sind beim Wiedereinschalten sofort wieder da"}</span>${run.length?`<span>Laufend</span><span>${run.length}</span>`:""}</div></div>`}
+function setTimeTracking(on){
+  if(!isAdmin()){toast("Nur Admins können das ändern.");return}
+  if(on===TT())return;
+  if(on){DB.settings.timeTracking=true;save();render();toast("Zeiterfassung eingeschaltet");return}
+  const run=DB.entries.filter(e=>!e.end);
+  const apply=()=>{DB.settings.timeTracking=false;save();render();toast("Zeiterfassung ausgeschaltet – gilt für alle Geräte")};
+  if(!run.length){if(confirm("Zeiterfassung für das ganze Büro ausschalten?\n\nBisherige Buchungen bleiben gespeichert und sind beim Wiedereinschalten wieder da."))apply();return}
+  const ov=modal("Zeiterfassung ausschalten",`<p style="margin-top:0">Es laufen noch <b>${run.length}</b> Aktion${run.length>1?"en":""}. Sie werden jetzt gestoppt und mit der bisherigen Zeit gespeichert:</p>
+   <div class="hodiff">${run.map(e=>{const c=caseBy(e.caseId),a=c?actBy(c.type,e.actionId):null;return `<label style="cursor:default">${av(e.userId)}<span><b>${esc(a?a.name:"Aktion")}</b><span class="hint">${c?c.no+" · "+esc(c.title):""} · ${hm(net(e))} h${e.pauseAt?" · pausiert":""}</span></span></label>`}).join("")}</div>
+   <p class="hint">Bisherige Buchungen bleiben gespeichert und sind beim Wiedereinschalten wieder da.</p>`,{ok:"Alle stoppen & ausschalten",onOk:()=>{
+    run.forEach(e=>{if(e.pauseAt){e.pause+=Date.now()-e.pauseAt;e.pauseAt=null}e.end=Date.now();e.history.push({at:Date.now(),by:DB.ui.user,text:"gestoppt beim Ausschalten der Zeiterfassung"})});
+    DB.settings.timeTracking=false;toast(`${run.length} Aktion${run.length>1?"en":""} gestoppt – Zeiterfassung aus`)}});
+}
+
+/* Manuelle Stunden je Fall (v. a. bei ausgeschalteter Zeiterfassung) */
+function manualCard(c){
+  const ms=c.manual||[];if(TT()&&!ms.length&&c.billing!=="hours"&&c.billing!=="mixed")return"";if(!TT()&&c.billing!=="hours"&&c.billing!=="mixed"&&!ms.length)return"";
+  const svcs=DB.settings.services.filter(s=>s.active!==false);
+  return `<div class="card noprint manual" style="margin:0 0 14px"><h2 style="font-size:14px">Stunden manuell<span class="sp"></span><button class="btn sm" onclick="addManual('${c.id}')">${ic("plus")}Leistung</button></h2>
+   ${ms.length?`<table class="mtab"><tr><th>Datum</th><th>Leistung</th><th class="r">Std.</th><th class="r">Satz</th><th>Notiz</th><th></th></tr>${ms.map((m,i)=>`<tr><td><input type="date" value="${isoD(m.date||Date.now())}" onchange="setManual('${c.id}',${i},'date',new Date(this.value+'T10:00').getTime())"></td>
+    <td><select onchange="setManual('${c.id}',${i},'serviceId',this.value)">${svcs.map(s=>`<option value="${s.id}" ${s.id===m.serviceId?"selected":""}>${esc(s.name)}</option>`).join("")}</select></td>
+    <td class="r"><input inputmode="decimal" value="${esc(String(m.h||"").replace(".",","))}" style="max-width:80px;text-align:right" onchange="setManual('${c.id}',${i},'h',this.value)"></td><td class="r muted">${eur(svcBy(m.serviceId).rate)}</td>
+    <td><input value="${esc(m.note||"")}" onchange="setManual('${c.id}',${i},'note',this.value)"></td><td><button class="ib" aria-label="Entfernen" onclick="rmManual('${c.id}',${i})">${ic("trash")}</button></td></tr>`).join("")}</table>`:`<div class="hint">${TT()?"Zusätzlich zu den gebuchten Zeiten können hier Stunden eingetragen werden.":"Die Zeiterfassung ist ausgeschaltet – Stunden für die Abrechnung hier je Leistung eintragen (Satz aus dem Leistungskatalog)."}</div>`}</div>`}
+function addManual(cid){const c=caseBy(cid);c.manual=[...(c.manual||[]),{id:uid(),date:Date.now(),serviceId:(DB.settings.services.find(s=>s.billable)||DB.settings.services[0]).id,h:"1",note:""}];save();render()}
+function setManual(cid,i,k,v){const c=caseBy(cid);c.manual[i]={...c.manual[i],[k]:v};save();render()}
+function rmManual(cid,i){if(!confirm("Eintrag entfernen?"))return;const c=caseBy(cid);c.manual.splice(i,1);save();render()}
 function toggleExtra(cid,sid,on){const c=caseBy(cid);c.extra=on?[...new Set([...c.extra,sid])]:c.extra.filter(x=>x!==sid);save();render()}
 
 /* ================= Termine (Wochenansicht) ================= */
@@ -538,7 +584,8 @@ function vZeiten(){
 /* ================= Auswertungen ================= */
 function hbars(rows,max){return rows.map(r=>`<div class="hbar"><div>${r.label}</div><div class="bar">${(r.parts||[{v:r.v,c:r.c}]).map(p=>`<i style="--c:${p.c};width:${max?p.v/max*100:0}%" title="${esc(p.t||"")}"></i>`).join("")}</div><div class="h">${r.text}</div></div>`).join("")}
 function vAuswertung(){
-  let h=`<div class="top"><h1>Auswertungen</h1></div><div class="tabs">${[["ma","Zeiten je Mitarbeiter"],["akt","Aufwand je Aktion / Leistung"],["pipe","Pipeline"],["fall","Leistungsnachweise"]].map(([k,l])=>`<button class="${RTAB===k?"on":""}" onclick="RTAB='${k}';render()">${l}</button>`).join("")}</div>`;
+  if(!TT()&&(RTAB==="ma"||RTAB==="akt"))RTAB="pipe";
+  let h=`<div class="top"><h1>Auswertungen</h1></div><div class="tabs">${[...(TT()?[["ma","Zeiten je Mitarbeiter"],["akt","Aufwand je Aktion / Leistung"]]:[]),["pipe","Pipeline"],["fall","Leistungsnachweise"]].map(([k,l])=>`<button class="${RTAB===k?"on":""}" onclick="RTAB='${k}';render()">${l}</button>`).join("")}</div>`;
   if(RTAB==="ma"){
     let from,to,label;
     if(RPER==="week"){from=weekStart(Date.now())+ROFF*7*DAY;to=from+7*DAY;label=`KW ${kw(from)} · ${dt(from)} – ${dt(to-DAY)}`}
@@ -573,7 +620,7 @@ function vAuswertung(){
     <div class="card"><h2>Ø Verweildauer je Phase</h2>${STAGES.slice(0,4).map((s,i)=>{const a=stageAvg(i);return `<div class="hbar"><div>${s}</div><div class="bar"><i style="--c:var(--acc);width:${a?Math.min(100,a/30*100):0}%"></i></div><div class="h">${a===null?"–":Math.round(a)+" T"}</div></div>`}).join("")}<div class="hint" style="margin-top:8px">Gemessen über die Phasenwechsel aller Fälle.</div></div></div>`;
   }else{
     const cs=DB.cases.filter(c=>c.stage>=3);
-    h+=`<div class="card"><table><tr><th>Nr.</th><th>Fall</th><th>Abrechnungsart</th><th class="r">Zeit</th><th class="r">Betrag</th><th>Status</th></tr>${cs.map(c=>{const b=caseBilling(c);return `<tr class="click" onclick="TAB='abr';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span> <b>${esc(c.title)}</b></td><td class="muted">${BILL[c.billing].split(" (")[0]}</td><td class="r">${hd(b.hours*3600000)} h</td><td class="r"><b>${eur(b.total)}</b></td><td>${c.billed?'<span class="tag ok">abgerechnet</span>':c.stage===4?'<span class="tag warn">offen</span>':'<span class="tag grey">Abschluss</span>'}</td></tr>`}).join("")}</table></div>`;
+    h+=`<div class="card"><table><tr><th>Nr.</th><th>Fall</th><th>Abrechnungsart</th><th class="r">${TT()?"Zeit":"Stunden"}</th><th class="r">Betrag</th><th>Status</th></tr>${cs.map(c=>{const b=caseBilling(c);return `<tr class="click" onclick="TAB='abr';go('fall','${c.id}')"><td>${c.no}</td><td><span class="tag ${c.type}">${TYPES[c.type]}</span> <b>${esc(c.title)}</b></td><td class="muted">${BILL[c.billing].split(" (")[0]}</td><td class="r">${hd(b.hours*3600000)} h</td><td class="r"><b>${eur(b.total)}</b></td><td>${c.billed?'<span class="tag ok">abgerechnet</span>':c.stage===4?'<span class="tag warn">offen</span>':'<span class="tag grey">Abschluss</span>'}</td></tr>`}).join("")}</table></div>`;
   }
   return h;
 }
@@ -581,7 +628,7 @@ function vAuswertung(){
 /* ================= Einstellungen (nur Admin) ================= */
 function vEinst(){
   if(!isAdmin())return `<div class="top"><h1>Einstellungen</h1></div><div class="card lock">${ic("lock",'style="width:22px"')}Nur für Admins. Bitte als Admin anmelden bzw. links unten einen Admin wählen.</div>`;
-  let h=`<div class="top"><h1>Einstellungen</h1></div><div class="tabs">${[["fields","Erfassungsfelder"],["actions","Aktionen"],["services","Leistungskatalog"],["proto","Übergabeprotokoll"],["design","Design & Dokumente"],["users","Mitarbeiter"],["daten","Daten & Sicherung"],["info","Info"]].map(([k,l])=>`<button class="${SETTAB===k?"on":""}" onclick="SETTAB='${k}';render()">${l}</button>`).join("")}</div>`;
+  let h=`<div class="top"><h1>Einstellungen</h1></div><div class="tabs">${[["fields","Erfassungsfelder"],["funktionen","Funktionen"],...(TT()?[["actions","Aktionen"]]:[]),["services","Leistungskatalog"],["proto","Übergabeprotokoll"],["design","Design & Dokumente"],["users","Mitarbeiter"],["daten","Daten & Sicherung"],["info","Info"]].map(([k,l])=>`<button class="${SETTAB===k?"on":""}" onclick="SETTAB='${k}';render()">${l}</button>`).join("")}</div>`;
   if(SETTAB==="fields"){
     const fs=DB.settings.fields[SETSCOPE];
     h+=`<div class="top"><div class="seg">${Object.entries(FSCOPE).map(([k,l])=>`<button class="${SETSCOPE===k?"on":""}" onclick="SETSCOPE='${k}';render()">${l}</button>`).join("")}</div><span class="hint">Welche Daten in welcher Reihenfolge abgefragt werden</span><div class="sp"></div><button class="btn pri" onclick="editField(null)">${ic("plus")}Feld</button></div>
@@ -595,6 +642,7 @@ function vEinst(){
     h+=`<div class="top"><div class="seg">${["sale","rent"].map(k=>`<button class="${t===k?"on":""}" onclick="SETSCOPE='${k}';render()">${TYPES[k]}</button>`).join("")}</div><span class="hint">Je Aktion: erlaubte Leistungen (1:n) und eine Standardleistung</span><div class="sp"></div><button class="btn pri" onclick="editAction(null)">${ic("plus")}Aktion</button></div>
     <div class="card"><table><tr><th>Aktion</th><th>Phase</th><th>Leistungen</th><th>Aktiv</th><th></th></tr>${as.map((a,i)=>`<tr style="${a.active?"":"opacity:.5"}"><td><b>${esc(a.name)}</b>${a.proto?' <span class="tag rent">Protokoll</span>':""}</td><td class="muted">${STAGES[a.stage]}</td><td><div class="chips">${a.services.map(s=>`<span class="chip" style="${s===a.def?"border-color:var(--acc);color:var(--acc);font-weight:600":""}">${esc(svcBy(s).name)}${s===a.def?" ★":""}</span>`).join("")}</div></td>
      <td><input type="checkbox" class="sw" ${a.active?"checked":""} onchange="DB.settings.actions['${t}'][${i}].active=this.checked;save();render()" aria-label="Aktiv"></td><td class="r"><button class="ib" aria-label="Bearbeiten" onclick="editAction(${i})">${ic("edit")}</button></td></tr>`).join("")}</table><div class="hint" style="margin-top:8px">★ = Standardleistung beim Start</div></div>`;
+  }else if(SETTAB==="funktionen"){h+=vFunktionen();
   }else if(SETTAB==="daten"){h+=vDaten();
   }else if(SETTAB==="info"){h+=vInfo();
   }else if(SETTAB==="proto"){h+=vProtoSettings();
@@ -607,7 +655,7 @@ function vEinst(){
   }else{
     h+=`<div class="card" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><b>Anmeldung</b><div class="seg"><button class="${DB.settings.authMode!=="pin"?"on":""}" onclick="setAuth(false)">Benutzerauswahl</button><button class="${DB.settings.authMode==="pin"?"on":""}" onclick="setAuth(true)">Mitarbeiter + PIN</button></div><span class="hint">Für PIN-Anmeldung braucht jeder Mitarbeiter eine PIN (4–6 Ziffern).</span></div>
     <div class="top"><span class="hint">Admin pflegt Einstellungen, Mitarbeiter arbeiten mit allen Fällen</span><div class="sp"></div><button class="btn pri" onclick="editUser(null)">${ic("plus")}Mitarbeiter</button></div>
-    <div class="card"><table><tr><th>Name</th><th>Kürzel</th><th>Rolle</th><th>PIN</th><th class="r">Buchungen</th><th></th></tr>${DB.settings.users.map((u,i)=>`<tr><td>${av(u.id)} <b>${esc(u.name)}</b></td><td>${u.short}</td><td>${u.role==="admin"?'<span class="tag sale">Admin</span>':'<span class="tag grey">Mitarbeiter</span>'}</td><td>${u.pinHash?'<span class="tag ok">gesetzt</span>':'<span class="tag warn">fehlt</span>'}</td><td class="r">${DB.entries.filter(e=>e.userId===u.id).length}</td><td class="r"><button class="ib" aria-label="Bearbeiten" onclick="editUser(${i})">${ic("edit")}</button></td></tr>`).join("")}</table></div>`;
+    <div class="card"><table><tr><th>Name</th><th>Kürzel</th><th>Rolle</th><th>PIN</th>${TT()?'<th class="r">Buchungen</th>':""}<th></th></tr>${DB.settings.users.map((u,i)=>`<tr><td>${av(u.id)} <b>${esc(u.name)}</b></td><td>${u.short}</td><td>${u.role==="admin"?'<span class="tag sale">Admin</span>':'<span class="tag grey">Mitarbeiter</span>'}</td><td>${u.pinHash?'<span class="tag ok">gesetzt</span>':'<span class="tag warn">fehlt</span>'}</td>${TT()?`<td class="r">${DB.entries.filter(e=>e.userId===u.id).length}</td>`:""}<td class="r"><button class="ib" aria-label="Bearbeiten" onclick="editUser(${i})">${ic("edit")}</button></td></tr>`).join("")}</table></div>`;
   }
   return h;
 }
@@ -674,7 +722,7 @@ function seedProtocol(){
     S("Einbauküche & Geräte","checklist",["Herd / Kochfeld","Backofen","Kühlschrank","Geschirrspüler","Dunstabzug","Spüle & Armatur","Schränke & Arbeitsplatte"]),
     S("Zählerstände","meters",["Strom","Gas","Wasser kalt","Wasser warm","Wärmemengenzähler","Heizkostenverteiler"]),
     S("Schlüssel","keys",["Haustür","Wohnungstür","Briefkasten","Keller","Garage / Tiefgarage","Sonstige"]),
-    S("Unterlagen & Vereinbarungen","fields",["Rauchwarnmelder geprüft [ja/nein]","Bedienungsanleitungen übergeben [ja/nein]","Energieausweis vorgelegt [ja/nein]","Fotodokumentation erstellt [ja/nein]","Vereinbarte Nacharbeiten / Mängelbeseitigung [text lang]"])
+    S("Unterlagen & Vereinbarungen","fields",["Rauchwarnmelder geprüft [ja/nein]","Bedienungsanleitungen übergeben [ja/nein]","Energieausweis vorgelegt [ja/nein]","Fotodokumentation erstellt [ja/nein]","Sonstiges [text lang]","Vereinbarte Nacharbeiten / Mängelbeseitigung [text lang]"])
   ]};
 }
 function seedDesign(){
@@ -736,7 +784,7 @@ function protoView(c){
   h+=`<div class="card"><h2>${esc(p.no)} · ${p.kind}<span class="tag ${PSTAT[p.status][1]}">${PSTAT[p.status][0]}</span><span class="sp"></span><span class="hint" id="pstat" style="display:flex;gap:8px;align-items:center">${statHTML(st)}</span></h2>
    <div class="steps" style="margin-bottom:12px">${["Erfassen",p.signMode==="digital"?"Digital unterschreiben":p.signMode==="print"?"Drucken & auf Papier unterschreiben":"Unterschrift: digital oder Papier",p.signMode==="digital"?"Versand an Mieter":p.signMode==="print"?"Unterschriebenes Exemplar hochladen":"Abschluss"].map((s,i)=>`<div class="step ${i<stepI?"done":i===stepI?"cur":""}" style="cursor:default"><b>${i+1}</b>${s}</div>`).join("")}</div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    ${pa?`<button class="btn" onclick="startAction('${c.id}','${pa.id}')">${ic("play")}Zeit starten: ${esc(pa.name)}</button>`:""}
+    ${pa&&TT()?`<button class="btn" onclick="startAction('${c.id}','${pa.id}')">${ic("play")}Zeit starten: ${esc(pa.name)}</button>`:""}
     ${p.status!=="signed"?`<button class="btn pri big2" onclick="openCapture('${p.id}')">${ic("edit")}Erfassung öffnen (Touch)</button>`:""}
     ${p.status==="draft"?`<button class="btn" onclick="chooseSign('${p.id}')">${ic("check")}Erfassung abschließen → Unterschrift</button><button class="btn" onclick="printDoc(buildProtoDoc(DB.protocols.find(x=>x.id==='${p.id}')))">${ic("print")}Vorschau</button>`:""}
     ${p.status==="ready"&&p.signMode==="print"?`<button class="btn" onclick="printProto('${p.id}')">${ic("print")}Drucken / PDF</button><label class="btn ok">${ic("clip")}Unterschriebenes Exemplar hochladen<input type="file" accept=".pdf,image/*" multiple hidden onchange="uploadSigned('${p.id}',this)"></label><button class="btn sm" onclick="chooseSign('${p.id}')">Unterschriftsart ändern</button>`:""}
@@ -757,9 +805,9 @@ function protoView(c){
   p.sections.forEach(s=>{
     h+=`<div class="card"><h2>${esc(s.title)}<span class="sp"></span>${!lock&&s.type==="checklist"?`<button class="btn sm" onclick="allOk('${p.id}','${s.id}')">${ic("check")}Rest „${esc(p.states[0])}“</button>`:""}</h2>`;
     if(s.type==="fields")h+=`<div class="form">${s.items.map(i=>{const val=s.values[i.id]??"",at=`${dis} data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="v"`;
-      return `<label>${esc(i.label)}</label>`+(i.ftype==="bool"?`<div><input type="checkbox" class="sw" ${at} ${val==="true"?"checked":""}></div>`:i.ftype==="textarea"?`<textarea ${at}>${esc(val)}</textarea>`:i.ftype==="select"?`<select ${at}><option></option>${i.options.split(";").map(o=>`<option ${o.trim()===val?"selected":""}>${esc(o.trim())}</option>`).join("")}</select>`:`<input ${at} type="${i.ftype==="date"?"date":"text"}" value="${esc(val)}">`)}).join("")}</div>`;
+      return `<label>${esc(i.label)}</label>`+(i.ftype==="bool"?`<div><input type="checkbox" class="sw" ${at} ${val==="true"?"checked":""}></div>`:i.ftype==="textarea"?`<textarea ${at}>${esc(val)}</textarea>`:i.ftype==="select"?`<select ${at}><option></option>${i.options.split(";").map(o=>`<option ${o.trim()===val?"selected":""}>${esc(o.trim())}</option>`).join("")}</select>`:`<input ${at} type="${i.ftype==="date"?"date":"text"}" value="${esc(val)}">`)}).join("")}</div>${pxIsManHost(p,s)?pxManualsHTML(p,false):""}`;
     else if(s.type==="rooms"){delete s._o;h+=s.rooms.map(r=>{const d=s.items.filter(i=>isDefect(r.values[i.id])).length,f=s.items.filter(i=>r.values[i.id]&&r.values[i.id].z).length;
-      const op=!lock&&f<s.items.length&&!s._o;if(op)s._o=1;return `<details class="room" ${op?"open":""}><summary><b>${esc(r.name)}</b><span class="hint">${f}/${s.items.length}${d?` · <span style="color:var(--bad)">${d} Mängel</span>`:""}</span><span class="sp"></span>${!lock?`<button class="btn sm" onclick="event.preventDefault();allOk('${p.id}','${s.id}','${r.id}')">${ic("check")}Rest „${esc(p.states[0])}“</button><button class="ib" aria-label="Raum entfernen" onclick="event.preventDefault();rmRoom('${p.id}','${s.id}','${r.id}')">${ic("x")}</button>`:""}</summary>${chk(s,r.values,r.id)}</details>`}).join("");
+      const op=!lock&&f<s.items.length&&!s._o;if(op)s._o=1;return `<details class="room" ${op?"open":""}><summary><b>${esc(r.name)}</b><span class="hint">${f}/${s.items.length}${d?` · <span style="color:var(--bad)">${d===1?"1 Mangel":d+" Mängel"}</span>`:""}${(r.notes||[]).length?` · ${(r.notes||[]).length} Anmerkung${(r.notes||[]).length>1?"en":""}`:""}</span>${pxZtkHTML(p,s,r)}<span class="sp"></span>${!lock?`<button class="btn sm" onclick="event.preventDefault();allOk('${p.id}','${s.id}','${r.id}')">${ic("check")}Rest „${esc(p.states[0])}“</button><button class="ib" aria-label="Weitere Erfassung" title="Anmerkung / Mangel, Sonstiges, Anleitung" onclick="event.preventDefault();pxPlus(this,'${p.id}','${s.id}','${r.id}')">${ic("plus")}</button><button class="ib" aria-label="Raum umbenennen" title="Raum umbenennen" onclick="event.preventDefault();hoRenameRoom('${p.id}','${s.id}','${r.id}')">${ic("edit")}</button><button class="ib" aria-label="Raum entfernen" onclick="event.preventDefault();rmRoom('${p.id}','${s.id}','${r.id}')">${ic("x")}</button>`:""}</summary>${chk(s,r.values,r.id)}${pxNotesHTML(p,s,r,false)}</details>`}).join("");
       delete s._o;if(!lock)h+=`<div style="display:flex;gap:8px;margin-top:10px;max-width:420px"><input id="nr_${s.id}" placeholder="Weiteren Raum hinzufügen, z. B. Gäste-WC"><button class="btn" onclick="addRoom('${p.id}','${s.id}')">${ic("plus")}Raum</button></div>`}
     else if(s.type==="checklist")h+=chk(s,s.values);
     else if(s.type==="meters")h+=`<table class="ptab"><tr><th style="width:30%">Zähler</th><th>Zählernummer</th><th>Stand</th><th style="width:150px">Fotos</th></tr>${s.items.map(i=>`<tr><td>${esc(i.label)}</td><td>${note(p,s,i,s.values[i.id],null,"nr","Zählernummer")}</td><td>${note(p,s,i,s.values[i.id],null,"stand","Zählerstand")}${hoPrevHint(s.values[i.id])}</td><td>${photoCell(p,s,i,s.values[i.id],null,lock)}</td></tr>`).join("")}</table>`;
@@ -800,7 +848,7 @@ function buildReportDoc(c){
    <tr class="sum"><td>Summe</td><td class="r">${b.hours.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>${rates?`<td></td><td class="r">${eur(b.svcSum)}</td>`:""}</tr></table>`;
   const tot=[];if(c.billing==="courtage"||c.billing==="mixed")tot.push(["Courtage",`${b.cText}`,eur(b.courtage)]);if(c.billing==="mixed")tot.push(["Zusatzleistungen","nach Stundensätzen",eur(b.svcSum)]);if(c.billing==="hours")tot.push(["Leistungen","nach Stundensätzen",eur(b.svcSum)]);if(c.billing==="flat")tot.push(["Pauschale","",eur(c.flat)]);
   body+=`<table class="tot">${tot.map(t=>`<tr><td>${esc(t[0])}<div style="font-size:10px;color:#777">${esc(t[1])}</div></td><td class="r">${t[2]}</td></tr>`).join("")}<tr class="sum"><td>Gesamtbetrag (netto)</td><td class="r">${eur(b.total)}</td></tr></table>`;
-  if(D.showActivities)body+=`<h2>Tätigkeitsnachweis</h2><table class="grid"><tr><th>Datum</th><th>Tätigkeit</th><th>Leistung</th><th>MA</th><th class="r">Zeit</th></tr>${E.map(e=>`<tr><td>${dt(e.start)}</td><td>${esc(actBy(c.type,e.actionId).name)}${D.showNotes&&e.note?`<div style="font-size:10px;color:#666">${esc(e.note)}</div>`:""}</td><td>${esc(svcBy(e.serviceId).name)}</td><td>${userBy(e.userId).short}</td><td class="r">${hm(net(e))}</td></tr>`).join("")}</table>`;
+  if(D.showActivities&&TT())body+=`<h2>Tätigkeitsnachweis</h2><table class="grid"><tr><th>Datum</th><th>Tätigkeit</th><th>Leistung</th><th>MA</th><th class="r">Zeit</th></tr>${E.map(e=>`<tr><td>${dt(e.start)}</td><td>${esc(actBy(c.type,e.actionId).name)}${D.showNotes&&e.note?`<div style="font-size:10px;color:#666">${esc(e.note)}</div>`:""}</td><td>${esc(svcBy(e.serviceId).name)}</td><td>${userBy(e.userId).short}</td><td class="r">${hm(net(e))}</td></tr>`).join("")}</table>`;
   if(D.closing)body+=`<p style="margin-top:16px">${nl(D.closing)}</p>`;
   return docShell(D.title,[["Vorgang",c.no+" · "+TYPES[c.type]],["Datum",dt(Date.now())],["Objekt",o.title],["Auftraggeber",c.client],["Adresse",objVal(o,"Adresse")],["Zeitraum",span],["Abrechnung",BILL[c.billing].split(" (")[0]],["Status",c.closed?"abgeschlossen "+dt(c.closed):"laufend"]],body,D.sig?["Makler","Auftraggeber"]:null);
 }
@@ -814,8 +862,13 @@ function buildProtoDoc(p){
     rows.forEach(i=>{const v=vals[i.id];if(D.photoAppendix&&v&&v.photos)v.photos.forEach((ph,k)=>photos.push([`${room||s.title} · ${i.label}`,ph,v.z||"",photos.length+1]))});
     return `<table class="grid"><tr><th style="width:${hasPh?30:36}%">Prüfpunkt</th><th style="width:20%">Zustand</th><th>Bemerkung</th>${hasPh?'<th style="width:150px">Fotos</th>':""}</tr>${rows.map(i=>{const v=vals[i.id]||{};return `<tr${isDefect(v)?' class="def"':""}><td>${esc(i.label)}</td><td>${esc(v.z||"")}</td><td>${esc(v.note||"")}</td>${hasPh?`<td class="thumbs">${(v.photos||[]).map(ph=>`<img src="${psrc(ph)}" alt="">`).join("")}</td>`:""}</tr>`}).join("")}</table>`};
   p.sections.forEach(s=>{
-    if(s.type==="fields")body+=`<h2>${esc(s.title)}</h2><table class="grid kv">${s.items.map(i=>{const v=s.values[i.id];return `<tr><th>${esc(i.label)}</th><td>${i.ftype==="bool"?(v==="true"?"☑ ja":"☐ nein"):i.ftype==="date"&&v?dt(v):nl(v||"")}</td></tr>`}).join("")}</table>`;
-    else if(s.type==="rooms"){body+=`<h2>${esc(s.title)}</h2>`;s.rooms.forEach(r=>{const t=chk(s,r.values,r.name);if(t)body+=`<h3>${esc(r.name)}</h3>${t}`})}
+    if(s.type==="fields"){body+=`<h2>${esc(s.title)}</h2><table class="grid kv">${s.items.map(i=>{const v=s.values[i.id];return `<tr><th>${esc(i.label)}</th><td>${i.ftype==="bool"?(v==="true"?"☑ ja":"☐ nein"):i.ftype==="date"&&v?dt(v):nl(v||"")}</td></tr>`}).join("")}</table>`;
+      if(typeof pxIsManHost==="function"&&pxIsManHost(p,s)&&(p.manuals||[]).length){body+=`<h3>Anleitungen</h3><table class="grid"><tr><th>Bezeichnung</th><th style="width:22%">Raum</th><th style="width:20%">Übergeben</th></tr>${p.manuals.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.room||"–")}</td><td>${m.form==="digital"?"digital":m.form==="nein"?"nicht übergeben":"Papier"}</td></tr>`).join("")}</table>`;
+        if(D.photoAppendix)p.manuals.forEach(m=>(m.photos||[]).forEach(ph=>photos.push([`Anleitung: ${m.name}`,ph,"",photos.length+1])))}}
+    else if(s.type==="rooms"){body+=`<h2>${esc(s.title)}</h2>`;s.rooms.forEach(r=>{const t=chk(s,r.values,r.name),ns=r.notes||[];
+      ns.forEach(n=>{if(n.type==="defect"&&!n.fixedFrom)defects.push([r.name,"Weiterer Mangel",n.text+(n.from?` (seit ${n.from})`:"")]);if(D.photoAppendix&&!n.fixedFrom)(n.photos||[]).forEach(ph=>photos.push([`${r.name} · ${n.type==="defect"?"Mangel":"Anmerkung"}: ${n.text.slice(0,40)}`,ph,"",photos.length+1]))});
+      const nt=ns.filter(n=>!n.fixedFrom).length?`<table class="grid pxnt"><tr><th style="width:22%">Anmerkung / weiterer Mangel</th><th>Beschreibung</th></tr>${ns.filter(n=>!n.fixedFrom).map(n=>`<tr${n.type==="defect"?' class="def"':""}><td>${n.type==="defect"?"Mangel":"Anmerkung"}</td><td>${esc(n.text)}${n.from?` (seit ${esc(n.from)})`:""}</td></tr>`).join("")}</table>`:"";
+      if(t||nt||r.ztk)body+=`<h3>${esc(r.name)}<span style="font-weight:400;font-size:10.5px;margin-left:10px">Zimmertürschlüssel: ${r.ztk?"☑ ja":"☐ nein"}</span></h3>${t}${nt}`})}
     else if(s.type==="checklist"){const t=chk(s,s.values);if(t)body+=`<h2>${esc(s.title)}</h2>${t}`}
     else if(s.type==="meters"){const hasPh=D.showPhotos&&s.items.some(i=>s.values[i.id]&&s.values[i.id].photos&&s.values[i.id].photos.length);
       s.items.forEach(i=>{const v=s.values[i.id];if(D.photoAppendix&&v&&v.photos)v.photos.forEach(ph=>photos.push([`Zähler ${i.label}`,ph,v.stand||"",photos.length+1]))});
@@ -1045,7 +1098,7 @@ function rmPhoto(pid,sid,rid,iid,k){if(!confirm("Foto entfernen?"))return;const 
 function showImg(src,cap=""){const ov=document.createElement("div");ov.className="lightbox";ov.innerHTML=`<img src="${src}" alt="Foto"><div>${esc(cap)}</div>`;ov.onclick=()=>ov.remove();document.body.appendChild(ov)}
 function photoCell(p,s,i,val,rid,lock,big){const ph=(val&&val.photos)||[];const a=`'${p.id}','${s.id}','${rid||""}','${i.id}'`;
   return `<div class="phs ${big?"big":""}">${ph.map((d,k)=>`<span class="ph"><img src="${psrc(d)}" alt="Foto ${k+1}" onclick="event.stopPropagation();showImg(this.src,'${esc(i.label).replace(/'/g,"")}')">${lock?"":`<button aria-label="Foto entfernen" onclick="event.stopPropagation();rmPhoto(${a},${k})">×</button>`}</span>`).join("")}
-  ${lock?"":`<label class="cam" title="Foto aufnehmen / hochladen">${ic("plus",'style="width:14px"')}${big?"Foto":""}📷<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addPhoto(${a},this)"></label>`}</div>`}
+  ${lock?"":`<label class="cam" title="Foto aufnehmen / hochladen">${ic("plus",'style="width:14px"')}${big?"Foto":""}📷<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addPhoto(${a},this)"></label>`}${ph.length>1?`<span class="hint">${ph.length} Fotos</span>`:""}</div>`}
 
 /* ================= v0.6: Touch-Erfassung im eigenen Fenster ================= */
 let CAP=null;
@@ -1080,10 +1133,10 @@ function drawCap(){
      ${defs.length?`<h3>Mängel</h3>${defs.map(d=>`<div class="capdef"><b>${esc(d[0])} · ${esc(d[1])}</b><span>${esc(d[2].note||"ohne Beschreibung")}</span>${(d[2].photos||[]).map(x=>`<img src="${psrc(x)}" alt="Foto" onclick="showImg(this.src)">`).join("")}</div>`).join("")}`:""}
      <div class="capfinal"><button class="capbig ghost" onclick="printDoc(buildProtoDoc(pById('${p.id}')))">${ic("print",'style="width:22px"')}Druckvorschau</button><button class="capbig pri" onclick="const id=CAP.pid;closeCap();chooseSign(id)">${ic("edit",'style="width:22px"')}Fertig → Unterschrift</button></div>`;
   }else if(s.type==="rooms"||s.type==="checklist"){
-    body=`<div class="capbar"><button class="capbtn ok" onclick="capAllOk('${s.id}','${rid}')">${ic("check",'style="width:20px"')}Alle übrigen „${esc(p.states[0])}“</button>${s.type==="rooms"?`<button class="capbtn" onclick="capRoomAdd('${s.id}')">${ic("plus",'style="width:20px"')}Raum hinzufügen</button>`:""}</div>`+
+    body=(pg.r?pxZtkHTML(p,s,pg.r):"")+`<div class="capbar"><button class="capbtn ok" onclick="capAllOk('${s.id}','${rid}')">${ic("check",'style="width:20px"')}Alle übrigen „${esc(p.states[0])}“</button>${s.type==="rooms"?`<button class="capbtn" onclick="capRoomAdd('${s.id}')">${ic("plus",'style="width:20px"')}Raum hinzufügen</button>`:""}</div>`+
     s.items.map(i=>{const v=vals[i.id]||{};return `<div class="ci ${isDefect(v)?"def":""} ${v.z?"done":""}"><div class="cil">${esc(i.label)}${hoItemHint(v)}</div>
       <div class="zb">${p.states.map((x,k)=>`<button class="z ${v.z===x?"on":""} ${/mängel|defekt|beschädigt/i.test(x)?"bad":k===0?"good":""}" onclick="capZ('${s.id}','${rid}','${i.id}',${k})">${esc(x)}</button>`).join("")}</div>
-      <div class="crow"><input class="cin" data-pp="${p.id}" data-s="${s.id}" ${rid?`data-r="${rid}"`:""} data-i="${i.id}" data-k="note" value="${esc(v.note||"")}" placeholder="${isDefect(v)?"Mangel beschreiben …":"Bemerkung (optional)"}">${photoCell(p,s,i,v,rid,false,true)}</div></div>`}).join("");
+      <div class="crow"><input class="cin" data-pp="${p.id}" data-s="${s.id}" ${rid?`data-r="${rid}"`:""} data-i="${i.id}" data-k="note" value="${esc(v.note||"")}" placeholder="${isDefect(v)?"Mangel beschreiben …":"Bemerkung (optional)"}"></div><div class="crow">${photoCell(p,s,i,v,rid,false,true)}</div></div>`}).join("")+(pg.r?pxNotesHTML(p,s,pg.r,true)+`<button class="capbtn pxadd" onclick="pxNoteDlg('${p.id}','${s.id}','${pg.r.id}')">${ic("plus",'style="width:18px"')}Anmerkung / weiterer Mangel</button>`:"");
   }else if(s.type==="meters"){
     body=s.items.map(i=>{const v=vals[i.id]||{};return `<div class="ci ${v.stand?"done":""}"><div class="cil">${esc(i.label)}</div>
       <div class="crow two2"><label>Zählernummer<input class="cin" data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="nr" value="${esc(v.nr||"")}"></label><label>Zählerstand<input class="cin" inputmode="decimal" data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="stand" value="${esc(v.stand||"")}">${hoPrevHint(v)}</label></div>
@@ -1096,13 +1149,13 @@ function drawCap(){
     body=s.items.map(i=>{const v=vals[i.id]??"",at=`data-pp="${p.id}" data-s="${s.id}" data-i="${i.id}" data-k="v"`;
       return `<div class="ci ${v?"done":""}"><div class="cil">${esc(i.label)}</div>${i.ftype==="bool"?`<div class="zb"><button class="z ${v==="true"?"on good":""}" onclick="capBool('${s.id}','${i.id}','true')">Ja</button><button class="z ${v==="false"?"on":""}" onclick="capBool('${s.id}','${i.id}','false')">Nein</button></div>`
         :i.ftype==="textarea"?`<textarea class="cin" ${at} style="min-height:110px">${esc(v)}</textarea>`:i.ftype==="select"?`<select class="cin" ${at}><option></option>${i.options.split(";").map(o=>`<option ${o.trim()===v?"selected":""}>${esc(o.trim())}</option>`).join("")}</select>`
-        :`<input class="cin" ${at} type="${i.ftype==="date"?"date":"text"}" value="${esc(v)}">`}</div>`}).join("");
+        :`<input class="cin" ${at} type="${i.ftype==="date"?"date":"text"}" value="${esc(v)}">`}</div>`}).join("")+(pxIsManHost(p,s)?pxManualsHTML(p,true):"");
   }
   el.innerHTML=`<div class="caphead"><button class="capx" onclick="closeCap()" aria-label="Schließen">${ic("x",'style="width:24px;height:24px"')}</button>
     <div class="capt"><b>${esc(p.kind)}sprotokoll · ${esc(p.no)}</b><span>${esc(c.title)}</span></div><div class="capprog"><span>${st.done}/${st.tot}${st.def?` · <b style="color:var(--bad)">${st.def===1?"1 Mangel":st.def+" Mängel"}</b>`:""}</span><div class="progress"><i style="width:${st.pc}%"></i></div></div>
-    <button class="capbtn" onclick="capFull()">⛶ Vollbild</button></div>
+    <button class="capbtn" onclick="pxSonstDlg('${p.id}')" title="Sonstiges ergänzen">${ic("plus",'style="width:18px"')}Sonstiges</button><button class="capbtn" onclick="capFull()" aria-label="Vollbild">⛶<span class="lbl2"> Vollbild</span></button></div>
    <div class="capbody"><nav class="capnav">${pages.map((x,k)=>{const ps=pageStat(x);return `<button class="${k===CAP.idx?"on":""} ${ps&&ps.d===ps.t?"ok":""}" onclick="capGo(${k})"><span>${esc(x.title)}<small>${esc(x.sub)}</small></span>${ps?`<em>${ps.d===ps.t?"✓":ps.d+"/"+ps.t}${ps.def?` <b>!</b>`:""}</em>`:`<em>›</em>`}</button>`}).join("")}</nav>
-    <div class="capmain"><div class="capttl"><h2>${esc(pg.title)}</h2><span>${esc(pg.sub)}</span></div>${body}</div></div>
+    <div class="capmain"><div class="capttl"><h2>${esc(pg.title)}</h2><span>${esc(pg.sub)}</span>${pg.r?`<button class="capbtn sm" onclick="hoRenameRoom('${p.id}','${pg.s.id}','${pg.r.id}')">${ic("edit",'style="width:18px"')}Umbenennen</button><button class="capbtn sm pxplus" aria-label="Weitere Erfassung" title="Anmerkung / Mangel, Sonstiges, Anleitung" onclick="pxPlus(this,'${p.id}','${pg.s.id}','${pg.r.id}')">${ic("plus",'style="width:22px;height:22px"')}</button>`:""}</div>${body}</div></div>
    <div class="capfoot"><button class="capbig ghost" ${CAP.idx===0?"disabled":""} onclick="capGo(${CAP.idx-1})">◀ Zurück</button><span>${CAP.idx+1} / ${pages.length}</span><button class="capbig pri" ${CAP.idx===pages.length-1?"disabled":""} onclick="capGo(${CAP.idx+1})">Weiter ▶</button></div>`;
   const m=el.querySelector(".capmain");if(m)m.scrollTop=keepScroll;
   const nb=el.querySelector(".capnav button.on");if(nb)nb.scrollIntoView({block:"nearest",inline:"center"});
@@ -1133,6 +1186,8 @@ function printDoc(html,name="Dokument.pdf"){
 
 /* ================= Render ================= */
 function render(){
+  if(DB&&!TT()&&(VIEW==="laufend"||VIEW==="zeiten"))VIEW="start";
+  if(DB&&!TT()&&VIEW==="einstellungen"&&SETTAB==="actions")SETTAB="funktionen";
   applyZoom();renderNav();renderDock();
   const f={laufend:vLaufend,start:vStart,objekte:vObjekte,objekt:vObjekt,faelle:vFaelle,fall:vFall,kalender:vKalender,zeiten:vZeiten,auswertung:MOBILE?vStart:vAuswertung,einstellungen:MOBILE?vGeraet:vEinst}[VIEW];
   $("main").innerHTML=f();
@@ -1146,7 +1201,8 @@ function render(){
 const ZOOMS={auto:["Automatisch",0],s:["Kompakt",.85],m:["Normal",1],l:["Groß",1.15]};
 let ZOOMF=1;
 function autoZoom(){const w=innerWidth,h=innerHeight;if(MOBILE)return w<700||h<560?.88:1;return w<1150||h<690?.8:w<1340||h<780?.9:1}
-function applyZoom(){const z=(DB&&DB.ui&&DB.ui.zoom)||"auto",f=z==="auto"?autoZoom():ZOOMS[z][1];if(f===ZOOMF&&document.documentElement.dataset.zoom===z)return;ZOOMF=f;document.documentElement.style.zoom=f===1?"":String(f);document.documentElement.dataset.zoom=z}
+function applyPadb(){const v=MOBILE&&DB&&DB.ui?+(DB.ui.padb||0):0;document.documentElement.style.setProperty("--padb",v+"px")}
+function applyZoom(){applyPadb();const z=(DB&&DB.ui&&DB.ui.zoom)||"auto",f=z==="auto"?autoZoom():ZOOMS[z][1];if(f===ZOOMF&&document.documentElement.dataset.zoom===z)return;ZOOMF=f;document.documentElement.style.zoom=f===1?"":String(f);document.documentElement.style.setProperty("--zf",String(f));document.documentElement.dataset.zoom=z}
 function setZoom(z){DB.ui.zoom=z;save();applyZoom();render();toast("Anzeige: "+ZOOMS[z][0]+(z==="auto"?` (${Math.round(autoZoom()*100)} %)`:""))}
 function zoomMenu(btn){pop(btn,Object.entries(ZOOMS).map(([k,[l,f]])=>({label:`${((DB.ui.zoom||"auto")===k)?"✓ ":""}${l}${k==="auto"?` (jetzt ${Math.round(autoZoom()*100)} %)`:` (${Math.round(f*100)} %)`}`,fn:()=>setZoom(k)})))}
 let zoomT=0;window.addEventListener("resize",()=>{clearTimeout(zoomT);zoomT=setTimeout(()=>{applyZoom();fitTables()},150)});
@@ -1163,14 +1219,14 @@ document.addEventListener("keydown",e=>{if(MOBILE||!DB||!(e.ctrlKey||e.metaKey))
 
 /* ================= Taskleiste: Laufzeit im Titel, Infobereich, Badge (Windows) ================= */
 function taskbarSync(){
-  if(!DB)return;const mine=running().filter(e=>e.userId===DB.ui.user),f=mine[0];
+  if(!DB)return;const mine=running().filter(e=>e.userId===DB.ui.user),f=mine[0]; // running() ist leer, wenn die Zeiterfassung aus ist
   const lbl=e=>{const c=caseBy(e.caseId),a=c?actBy(c.type,e.actionId):null;return {title:a?a.name:"Aktion",sub:c?c.no:""}};
   document.title=f?`${f.pauseAt?"⏸":"▶"} ${hm(net(f))} ${lbl(f).title} · ${lbl(f).sub}${mine.length>1?` (+${mine.length-1})`:""} – Makler-Prozess`:`Makler-Prozess ${ENV?ENV.version:""}${running().length?` · ${running().length} laufend`:""}`;
   if(!MOBILE&&api.runState)api.runState({items:mine.map(e=>({id:e.id,...lbl(e),ms:net(e),paused:!!e.pauseAt})),all:running().length});
 }
 setInterval(()=>{if(DB)taskbarSync()},30000);
 if(window.api&&api.onRunCmd)api.onRunCmd(d=>{if(!DB)return;
-  if(d.cmd==="pause")pauseE(d.id);else if(d.cmd==="resume")resumeE(d.id);else if(d.cmd==="stop")stopE(d.id);else if(d.cmd==="quick")quick();});
+  if(!TT())return;if(d.cmd==="pause")pauseE(d.id);else if(d.cmd==="resume")resumeE(d.id);else if(d.cmd==="stop")stopE(d.id);else if(d.cmd==="quick")quick();});
 
 /* ================= App: Dateien & Pfade ================= */
 const psrc=d=>!d?"":String(d).startsWith("data:")?d:MOBILE?PLATFORM.fileSrc(d):"mpfile://f/"+String(d).split("/").map(encodeURIComponent).join("/");
@@ -1403,6 +1459,7 @@ function vGeraet(){
      ${PLATFORM.native?"":`<span>Dauerhaft</span><span>${si.persisted===true?'<span style="color:var(--ok)">ja</span>':si.persisted===false?'<span style="color:var(--warn)">nicht bestätigt – App „Zum Startbildschirm“ hinzufügen</span>':"–"}</span>`}
      <span>Daten</span><span>${DB.objects.length} Objekte · ${DB.cases.length} Fälle · ${DB.protocols.length} Protokolle</span></div>
      <p class="hint">Eigene Fotos und Protokolle bleiben lokal, bis sie in der Cloud liegen. Dokumente anderer Geräte werden erst beim Öffnen geladen.</p>
+     <div class="ro" style="margin:10px 0"><span>Abstand unten</span><span><div class="seg">${[[0,"Automatisch"],[16,"+16"],[32,"+32"],[48,"+48"]].map(([k,l])=>`<button class="${(+(DB.ui.padb||0))===k?"on":""}" onclick="DB.ui.padb=${k};save();render()">${l}</button>`).join("")}</div><div class="hint">Falls Android-Tasten unten etwas verdecken: Abstand erhöhen (nur dieses Gerät).</div></span></div>
      <div style="display:flex;gap:8px;flex-wrap:wrap">${cl?`<button class="btn" onclick="mobDropCache()">${ic("down")}Speicher freigeben</button>`:""}<button class="btn danger" onclick="mobReset()">${ic("trash")}Gerät zurücksetzen</button></div>
      ${pend?`<div class="banner" style="background:var(--warn-soft);color:var(--warn);margin:12px 0 0">${pend} Änderung${pend>1?"en":""} noch nicht gesendet – vor dem Zurücksetzen synchronisieren.</div>`:""}</div></div>`;
 }

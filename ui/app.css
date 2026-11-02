@@ -3,7 +3,7 @@
   --bg:#f3f4f6;--panel:#fff;--panel2:#f7f8fa;--ink:#1b2430;--mute:#66717f;--faint:#9aa3ae;--line:#e3e6ea;--line2:#d3d8de;
   --acc:#2563eb;--acc-soft:#e8efff;--sale:#2563eb;--sale-soft:#e8efff;--rent:#0f8a7a;--rent-soft:#e0f4f0;
   --ok:#1f9d55;--ok-soft:#e4f5eb;--warn:#c47a0a;--warn-soft:#fdf1df;--bad:#c2410c;--bad-soft:#fdebe3;
-  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;
+  box-sizing:border-box;--sat:max(env(safe-area-inset-top,0px),var(--safe-area-inset-top,0px));--sab:calc(max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px)) + var(--padb,0px));--satz:calc(var(--sat) / var(--zf,1));--sabz:calc(var(--sab) / var(--zf,1));padding-top:var(--satz);padding-bottom:var(--sabz);color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#13161b;--panel:#1b1f26;--panel2:#22272f;--ink:#e6eaef;--mute:#9aa4b1;--faint:#6c7584;--line:#2b313a;--line2:#3a414c;
@@ -405,10 +405,10 @@ body.mobile .ov .modal,body.mobile .ov>div{max-width:calc(100vw - 24px)}
 .userchip .av{width:32px;height:32px;font-size:12px}.userchip svg{width:16px;height:16px}
 img.mpload{background:var(--panel2);min-width:40px;min-height:40px;animation:p 1.4s infinite}
 img.mpmiss{background:repeating-linear-gradient(45deg,var(--panel2),var(--panel2) 6px,var(--line) 6px,var(--line) 12px);min-width:40px;min-height:40px}
-.docov{position:fixed;inset:0;z-index:88;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr);padding-top:env(safe-area-inset-top)}
+.docov{position:fixed;inset:0;z-index:88;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr);padding-top:var(--satz)}
 .docov .docbar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
 .docov iframe{border:0;width:100%;height:100%;background:#fff}
-.updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:95;display:flex;gap:10px;align-items:center;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px}
+.updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sabz));z-index:95;display:flex;gap:10px;align-items:center;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px}
 .pdfhost{position:absolute;left:0;top:0;width:718px;z-index:-5;pointer-events:none;background:#fff}
 .pdfhost .doc,.pdfpage .doc{padding:0;min-height:0;width:718px}
 .pdfhost .doc .band,.pdfpage .doc .band{margin:0 0 16px}
@@ -428,9 +428,9 @@ body.mobile .login{z-index:120}
  body.mobile .run{max-width:290px}
  body.mobile .dock{gap:6px;padding:8px 10px}
  body.mobile .two{grid-template-columns:1fr}
- body.mobile .updbar{bottom:calc(76px + env(safe-area-inset-bottom))}
+ body.mobile .updbar{bottom:calc(76px + var(--sabz))}
 }
-body.mobile .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
+body.mobile .toast{bottom:calc(92px + var(--sabz))}
 @media (orientation:landscape) and (min-width:901px){body.mobile .toast{bottom:28px}}
 
 /* ================= 2.2: Übergabe am Objekt ================= */
@@ -480,3 +480,41 @@ body.mobile .ph img{width:48px;height:48px}
 @media (orientation:portrait){.pvbar .hint{display:none}}
 body.mobile .phs .ph button,body.mobile .phs.big .ph button{width:32px;height:32px;line-height:32px;top:-12px;right:-12px}
 body.mobile details.room summary .ib{width:40px;height:40px}
+/* 2.3 */
+.capttl .capbtn.sm{margin-left:auto;padding:8px 14px;font-size:14px}
+.dockttl{font-size:14px;color:var(--mute)}
+.manual .mtab input,.manual .mtab select{padding:4px 8px}
+#cap{z-index:60}.ov{z-index:65}
+@media (max-width:760px){.week{grid-template-columns:1fr}.week .day{min-height:0}.week .ev b{white-space:normal}}
+
+/* ================= 2.4: Freiraum für Android-Tasten, Protokoll-Ergänzungen ================= */
+/* fest positionierte Fenster liegen über dem Seitenrand – Abstand selbst einhalten */
+#cap,.wiz,.pvov,.docov,.lightbox{padding-top:var(--satz);padding-bottom:var(--sabz)}
+.ov{padding-top:calc(16px + var(--satz));padding-bottom:calc(16px + var(--sabz))}
+.helpov .helpdr{padding-bottom:var(--sabz)}
+.modal{max-height:calc(100vh - 32px - var(--satz) - var(--sabz))}
+body.mobile .capfoot{padding-bottom:12px}
+body.mobile .pop{max-height:calc(100vh - 40px - var(--sabz));overflow:auto}
+.pxztk{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 12px;cursor:pointer;user-select:none}
+.pxztk.on{border-color:var(--ok);background:var(--ok-soft)}.pxztk input{width:22px;height:22px;margin:0;min-height:0}
+details.room summary .pxztk{margin:0 6px;padding:3px 10px;font-size:13px}details.room summary .pxztk input{width:16px;height:16px}
+#cap .pxztk{font-size:16px;padding:12px 16px}
+.pxnotes{border:1px dashed var(--line2);border-radius:12px;padding:10px 14px;margin:12px 0;background:var(--panel)}
+.pxnote{padding:8px 0;border-bottom:1px solid var(--line)}.pxnote:last-child{border:0}
+.pxnh{display:flex;gap:10px;align-items:center}.pxnt{flex:1;min-width:0}.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.pxnote .pxphs{margin-top:6px}
+.pxadd{margin-top:4px}
+.pxman{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.pxmh{display:flex;align-items:center;gap:10px;margin-bottom:6px}.pxmr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}.pxmn{flex:1;min-width:160px}
+.pxmr .pxphs{flex:0 0 auto}
+textarea.pxsonst{min-height:220px;width:100%}
+.capttl .pxplus{background:var(--acc);color:#fff;border-color:var(--acc);margin-left:8px;min-width:52px;justify-content:center}
+.capttl{flex-wrap:wrap;align-items:center}
+/* Fotos je Prüfpunkt: eigene Zeile, umbrechend, „+ Foto“ immer sichtbar */
+#cap .ci .crow+.crow{margin-top:8px}
+#cap .phs.big{width:100%;flex-wrap:wrap;gap:10px}
+.ptab .phs{flex-wrap:wrap;max-width:100%}
+.phs .cam{flex:none}
+.pop{z-index:66}
+.capttl .capbtn.sm.pxplus{margin-left:8px}
+.ro>span{min-width:0}.ro .seg{flex-wrap:wrap;max-width:100%}

@@ -37,7 +37,7 @@ function hoFromTemplate(o) {
 }
 function hoFromProtocol(o, p) {
   const h = hoFromTemplate(o); h.src = p.no;
-  const rs = hoSec(p, "rooms")[0]; if (rs) h.rooms = rs.rooms.map(r => ({ id: hoId(o.id, "r", r.name), name: r.name }));
+  const rs = hoSec(p, "rooms")[0]; if (rs) h.rooms = rs.rooms.map(r => ({ id: r.hoRid || hoId(o.id, "r", r.name), name: r.name }));
   const ms = hoSec(p, "meters")[0];
   if (ms) h.meters = ms.items.map(i => { const v = ms.values[i.id] || {}; return { id: hoId(o.id, "m", i.label), label: i.label, nr: v.nr || "", loc: "", last: v.stand ? { stand: v.stand, date: p.date, pno: p.no } : null }; });
   const ks = hoSec(p, "keys")[0];
@@ -62,7 +62,7 @@ makeProtocol = function (st, c, kind, user, opt) {
   opt = opt || { meterNr: true, meterStand: true, keys: true };
   const base = opt.base ? DB.protocols.find(x => x.id === opt.base) : null;
   if (H) {
-    const rs = hoSec(p, "rooms")[0]; if (rs && H.rooms.length) rs.rooms = H.rooms.map(r => ({ id: uid(), name: r.name, values: {} }));
+    const rs = hoSec(p, "rooms")[0]; if (rs && H.rooms.length) rs.rooms = H.rooms.map(r => ({ id: uid(), name: r.name, values: {}, hoRid: r.id }));
     const kc = p.sections.find(hoKitchen); if (kc && H.devices.length) kc.items = H.devices.map(d => ({ id: d.id, label: d.label, ftype: "text", options: "" }));
     const bm = base ? hoMeters(base) : [];
     const ms = hoSec(p, "meters")[0];
@@ -94,7 +94,7 @@ makeProtocol = function (st, c, kind, user, opt) {
       const how = dec[d.key]; if (!how) return;
       const ns = p.sections.find(s => s.type === d.s.type && (d.s.type === "rooms" || s.title === d.s.title)); if (!ns) return;
       let tgt;
-      if (d.s.type === "rooms") { let r = ns.rooms.find(x => x.name === d.r.name); if (!r) { r = { id: uid(), name: d.r.name, values: {} }; ns.rooms.push(r); } tgt = r.values; } else tgt = ns.values;
+      if (d.s.type === "rooms") { let r = ns.rooms.find(x => (d.r.hoRid && x.hoRid === d.r.hoRid)) || ns.rooms.find(x => x.name === d.r.name); if (!r) { r = { id: uid(), name: d.r.name, values: {} }; ns.rooms.push(r); } tgt = r.values; } else tgt = ns.values;
       const it = ns.items.find(i => i.label === d.i.label); if (!it) return;
       if (how === "take") { const ph = opt.withPhotos ? [...(d.v.photos || [])] : []; tgt[it.id] = { z: d.v.z, note: d.v.note || "", from: base.no, ...(ph.length ? { photos: ph, photosFrom: [...ph] } : {}) }; }
       else tgt[it.id] = { fixedFrom: base.no, fixedNote: d.v.note || "" };
@@ -185,8 +185,14 @@ function hoDiff(p) {
   if (ks) ks.items.forEach(i => { const v = ks.values[i.id] || {}, ok = H.keys.find(x => x.id === i.id) || H.keys.find(x => x.label === i.label); if (ok && v.n !== undefined && v.n !== "" && String(v.n) !== String(ok.n)) out.push({ k: "key", label: `Schlüssel ${ok.label}`, detail: `${ok.n || "–"} → ${v.n}`, ok, v, on: true }); });
   const rs = hoSec(p, "rooms")[0];
   if (rs) {
-    rs.rooms.forEach(r => { if (!H.rooms.some(x => x.name === r.name)) out.push({ k: "radd", label: `Neuer Raum „${r.name}“`, detail: "in die Stammdaten aufnehmen", name: r.name, on: true }); });
-    H.rooms.forEach(x => { if (!rs.rooms.some(r => r.name === x.name)) out.push({ k: "rdel", label: `Raum „${x.name}“`, detail: "im Protokoll entfernt – auch aus den Stammdaten löschen?", room: x, on: false }); });
+    const used = new Set();
+    rs.rooms.forEach(r => {
+      const byId = r.hoRid && H.rooms.find(x => x.id === r.hoRid);
+      if (byId) { used.add(byId.id); if (byId.name !== r.name) out.push({ k: "rren", label: `Raum umbenannt`, detail: `${byId.name} → ${r.name}`, room: byId, name: r.name, on: true }); return; }
+      const byName = H.rooms.find(x => x.name === r.name); if (byName) { used.add(byName.id); return; }
+      out.push({ k: "radd", label: `Neuer Raum „${r.name}“`, detail: "in die Stammdaten aufnehmen", name: r.name, on: true });
+    });
+    H.rooms.forEach(x => { if (!used.has(x.id)) out.push({ k: "rdel", label: `Raum „${x.name}“`, detail: "im Protokoll entfernt – auch aus den Stammdaten löschen?", room: x, on: false }); });
   }
   return out;
 }
@@ -199,6 +205,7 @@ function hoApply(p, list) {
     if (d.k === "key") d.ok.n = String(d.v.n);
     if (d.k === "radd") H.rooms.push({ id: hoId(o.id, "r", d.name), name: d.name });
     if (d.k === "rdel") H.rooms = H.rooms.filter(r => r.id !== d.room.id);
+    if (d.k === "rren") { const r = H.rooms.find(x => x.id === d.room.id); if (r && !H.rooms.some(x => x !== r && x.name === d.name)) r.name = d.name; }
   });
 }
 function hoAfterSign(pid) {
@@ -246,7 +253,7 @@ function hoObjTab(o) {
     return `<div class="hoi ${p.status}"><div class="hoh"><span class="tag rent">${p.kind}</span><h3>${dt(p.date)} · ${esc(p.no)}</h3><span class="tag ${PSTAT[p.status][1]}">${p.status === "signed" ? "✓ " : ""}${PSTAT[p.status][0]}${p.status !== "signed" ? " · " + st.pc + " %" : ""}</span>
       <span class="hint">${[hoTenant(p) ? "Mieter: " + esc(hoTenant(p)) : "", p.signMode ? (p.signMode === "digital" ? "digital" : "Papier") : "", p.sent ? "an Mieter gesendet" : "", p.base ? "Basis " + esc(p.base.no) : ""].filter(Boolean).join(" · ")}</span>
       <span class="hoacts">${p.status === "signed" ? `<button class="btn sm" onclick="hoOpen('${p.id}')">Öffnen</button><button class="btn sm" onclick="hoPdf('${p.id}')">${ic("print")}PDF</button><button class="btn sm" onclick="hoNewProto({oid:'${o.id}',base:'${p.id}'})">Als Basis</button>` : `<button class="btn sm pri" onclick="hoOpen('${p.id}')">Weiter erfassen</button><button class="btn sm" onclick="hoNewProto({oid:'${o.id}',base:'${p.id}'})">Als Basis</button>`}</span></div>
-      <div class="hochips">${p.status !== "signed" ? `<span class="chip">${st.done}/${st.tot} Prüfpunkte</span>` : ""}${defs.length ? `<span class="chip bad">⚠ ${hoMg(defs.length)}${nd && nd < defs.length ? ` (${nd} neu)` : ""}</span>` : p.status === "signed" ? `<span class="chip ok">✓ mängelfrei</span>` : ""}${fx.length ? `<span class="chip ok">✓ ${fx.length} behoben</span>` : ""}${ph ? `<span class="chip">📷 ${ph}</span>` : ""}${ms.length ? `<span class="chip">⚡ ${ms.length} Zähler</span>` : ""}${kt ? `<span class="chip">🔑 ${kt} Schlüssel</span>` : ""}${na ? `<span class="chip">📝 ${esc(na.length > 60 ? na.slice(0, 57) + "…" : na)}</span>` : ""}
+      <div class="hochips">${p.status !== "signed" ? `<span class="chip">${st.done}/${st.tot} Prüfpunkte</span>` : ""}${defs.length ? `<span class="chip bad">⚠ ${hoMg(defs.length)}${nd && nd < defs.length ? ` (${nd} neu)` : ""}</span>` : p.status === "signed" ? `<span class="chip ok">✓ mängelfrei</span>` : ""}${fx.length ? `<span class="chip ok">✓ ${fx.length} behoben</span>` : ""}${ph ? `<span class="chip">📷 ${ph}</span>` : ""}${ms.length ? `<span class="chip">⚡ ${ms.length} Zähler</span>` : ""}${kt ? `<span class="chip">🔑 ${kt} Schlüssel</span>` : ""}${(p.manuals || []).length ? `<span class="chip">📘 ${p.manuals.length} Anleitung${p.manuals.length > 1 ? "en" : ""}</span>` : ""}${na ? `<span class="chip">📝 ${esc(na.length > 60 ? na.slice(0, 57) + "…" : na)}</span>` : ""}
        ${defs.length || ms.length ? `<button class="chip lnk" onclick="HOOPEN['${p.id}']=${!open};render()">${open ? "Details ▴" : "Details ▾"}</button>` : ""}</div>
       ${open && (defs.length || ms.length || fx.length) ? `<div class="hodet"><div>${defs.length || fx.length ? `<b>Mängel</b>${defs.map(d => `<div class="hom">${(d.v.photos || []).slice(0, 1).map(x => `<img src="${psrc(x)}" alt="Foto" onclick="showImg(this.src)">`).join("") || `<span class="hodefn">!</span>`}<div><b>${esc(d.area)} · ${esc(d.i.label)}</b><div class="hint">${esc(d.v.note || d.v.z)} · ${d.v.from ? `<span class="tag grey">seit ${esc(d.v.from)}</span>` : `<span class="tag warn">neu</span>`}</div></div></div>`).join("")}${fx.map(f => `<div class="hom"><span class="hodefn ok">✓</span><div><b>${esc(f.area)} · ${esc(f.i.label)}</b><div class="hint">behoben seit ${esc(f.v.fixedFrom)}${f.v.fixedNote ? " · " + esc(f.v.fixedNote) : ""}</div></div></div>`).join("")}` : ""}</div>
        <div>${ms.length ? `<b>Zählerstände</b><table class="mini"><tr><th>Zähler</th><th>Nr.</th><th>Stand</th>${pm.length ? `<th>Δ ${esc(prevP.no)}</th>` : ""}</tr>${ms.map(m => { const q = pm.find(x => x.id === m.id || x.label === m.label), a = hoNum(m.stand), b = q ? hoNum(q.stand) : null; return `<tr><td>${esc(m.label)}</td><td>${esc(m.nr)}</td><td>${esc(m.stand)}</td>${pm.length ? `<td>${a !== null && b !== null ? (a - b >= 0 ? "+" : "") + hoFmt(a - b) : ""}</td>` : ""}</tr>`; }).join("")}</table>` : ""}</div></div>` : ""}</div>`;
@@ -267,15 +274,22 @@ function hoObjTab(o) {
 function hoEdit(oid, kind) {
   const o = objBy(oid), H = hoEnsure(o);
   const cols = { rooms: [["name", "Raum"]], devices: [["label", "Gerät / Prüfpunkt"]], meters: [["label", "Art"], ["nr", "Zählernummer"], ["loc", "Lage"]], keys: [["label", "Schlüssel"], ["n", "Anzahl"], ["note", "Bemerkung"]] }[kind];
-  const title = { rooms: "Räume", devices: "Einbauküche / Geräte", meters: "Zähler", keys: "Schlüssel" }[kind];
+  const title = { rooms: "Räume (umbenennen, hinzufügen, löschen)", devices: "Einbauküche / Geräte", meters: "Zähler", keys: "Schlüssel" }[kind];
   let rows = H[kind].map(x => ({ ...x }));
   const ov = modal(title + " · " + o.title, `<div class="hoedit"></div><button class="btn sm" type="button" data-add>${ic("plus")}Zeile hinzufügen</button>
-    <p class="hint">Reihenfolge mit ▲▼. Gilt für neue Protokolle; bestehende Protokolle bleiben unverändert.</p>`, { wide: kind === "meters" || kind === "keys", onOk: () => {
+    <p class="hint">${kind === "rooms" ? "Raumnamen direkt im Feld ändern (z. B. „Kinderzimmer“ → „Arbeitszimmer“). Gilt für neue Protokolle und wird in noch nicht unterschriebene Protokolle übernommen; unterschriebene bleiben unverändert. " : "Gilt für neue Protokolle; bestehende Protokolle bleiben unverändert. "}Reihenfolge mit ▲▼.</p>`, { wide: kind === "meters" || kind === "keys", onOk: () => {
       grab(); const keyF = cols[0][0];
       const clean = rows.filter(r => String(r[keyF] || "").trim());
       clean.forEach(r => { r[keyF] = r[keyF].trim(); if (!r.id) r.id = hoId(o.id, kind[0], r[keyF], Date.now(), Math.random()); });
       const dup = clean.map(r => r[keyF].toLowerCase()).find((n, i, a) => a.indexOf(n) !== i); if (dup) throw new Error(`„${dup}“ ist doppelt.`);
-      H[kind] = clean; toast(title + " gespeichert");
+      const old = kind === "rooms" ? Object.fromEntries(H.rooms.map(r => [r.id, r.name])) : null;
+      H[kind] = clean;
+      let moved = 0;
+      if (old) hoProtos(o).filter(p => p.status !== "signed").forEach(p => hoSec(p, "rooms").forEach(sec => sec.rooms.forEach(r => {
+        const nr = clean.find(x => x.id === r.hoRid) || (!r.hoRid && clean.find(x => old[x.id] === r.name));
+        if (nr && r.name !== nr.name && old[nr.id] === r.name) { r.name = nr.name; r.hoRid = nr.id; moved++; }
+      })));
+      toast(title.split(" (")[0] + " gespeichert" + (moved ? ` – ${moved} Raum${moved > 1 ? "namen" : "name"} auch in offenen Protokollen angepasst` : ""));
     } });
   const box = ov.querySelector(".hoedit");
   const grab = () => box.querySelectorAll(".hor").forEach((el, k) => cols.forEach(([f]) => { rows[k][f] = el.querySelector(`[data-f="${f}"]`).value; }));
@@ -298,3 +312,13 @@ function hoItemHint(v) {
   return "";
 }
 function hoPrevHint(v) { return v && v.prev ? `<div class="hohint">Vorwert ${esc(v.prev.stand)} · ${dt(v.prev.date)}${v.prev.pno ? " · " + esc(v.prev.pno) : ""}</div>` : ""; }
+
+/* ---------- Raum im Protokoll umbenennen (je Objekt unterschiedlich) ---------- */
+function hoRenameRoom(pid, sid, rid) {
+  const p = DB.protocols.find(x => x.id === pid); if (!p || p.status === "signed") { toast("Protokoll ist unterschrieben und gesperrt"); return; }
+  const s = p.sections.find(x => x.id === sid), r = s && s.rooms.find(x => x.id === rid); if (!r) return;
+  modal("Raum umbenennen", `<div class="form"><label>Neuer Name</label><input name="n" value="${esc(r.name)}"></div>
+    <p class="hint">Gilt für dieses Protokoll. Nach der Unterschrift fragt die App, ob der neue Name auch in die Übergabe-Stammdaten des Objekts übernommen werden soll.</p>`,
+  { ok: "Umbenennen", onOk: ov => { const n = v(ov, "n").trim(); if (!n) throw new Error("Bitte einen Namen eingeben."); if (s.rooms.some(x => x !== r && x.name.toLowerCase() === n.toLowerCase())) throw new Error(`„${n}“ gibt es in diesem Protokoll schon.`);
+    r.name = n; toast("Raum umbenannt"); if (typeof CAP !== "undefined" && CAP) setTimeout(drawCap, 0); } });
+}
