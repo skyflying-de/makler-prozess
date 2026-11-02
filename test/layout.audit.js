@@ -3,6 +3,7 @@
 // Aufruf: node tools/build-web.js --test && xvfb-run -a node test/layout.audit.js <ausgabe-ordner> [--shots]
 const { _electron: electron, chromium } = require("playwright");
 const fs = require("fs"), path = require("path"), { spawn } = require("child_process");
+const TTOFF = process.argv.includes("--ohne-zeit"); // Layout mit ausgeschalteter Zeiterfassung prüfen
 const ONLY = (process.argv.find(a => a.startsWith("--only=")) || "").slice(7);
 const APP = path.join(__dirname, ".."), OUT = process.argv[2] || "/tmp/mp-layout", SHOTS = process.argv.includes("--shots");
 const UA = "Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
@@ -73,6 +74,7 @@ async function run(kind, page, vps, report, setup) {
   const w = await app.firstWindow(); w.on("dialog", d => d.accept()); await w.waitForTimeout(900);
   await w.click("[data-a=next]"); await w.waitForTimeout(300); await w.click("[data-s=demo]"); await w.click("[data-a=next]"); await w.waitForTimeout(200);
   await w.fill("[name=wn]", "Sandra Lugt"); await w.fill("[name=ws]", "SL"); await w.click("[data-a=next]"); await w.waitForTimeout(1300); await w.keyboard.press("Escape");
+  if (TTOFF) await w.evaluate(() => { DB.entries.forEach(e => { if (!e.end) e.end = Date.now(); }); DB.settings.timeTracking = false; save(); render(); });
   await run("pc", w, [[1366, 768, "1366x768"], [1280, 720, "1280x720"], [1920, 1040, "1920x1040"]], report);
   await app.close();
   }
@@ -84,6 +86,7 @@ async function run(kind, page, vps, report, setup) {
   await t.click("[data-a=demo]"); await t.waitForTimeout(1200); await t.click(".login [data-u]");
   for (const k of "1234") await t.click(`.login [data-k="${k}"]`); await t.click('.login [data-k="OK"]'); for (const k of "1234") await t.click(`.login [data-k="${k}"]`); await t.click('.login [data-k="OK"]'); await t.waitForTimeout(500);
   await t.evaluate(() => { window.MP_LOCK_MS = 36e5; });
+  if (TTOFF) await t.evaluate(() => { DB.entries.forEach(e => { if (!e.end) e.end = Date.now(); }); DB.settings.timeTracking = false; save(); render(); });
   await run("tablet", t, [[1280, 800, "quer"], [800, 1280, "hoch"], [1024, 768, "quer-klein"], [768, 1024, "hoch-klein"], [600, 960, "hoch-7zoll"]], report);
   await b.close(); }
   procs.forEach(p => p.kill());
