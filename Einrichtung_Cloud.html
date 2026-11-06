@@ -11,10 +11,11 @@ code,kbd{background:var(--code);padding:1px 6px;border-radius:4px;font-size:.9em
 ol li{margin:6px 0}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:var(--p);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 @media(max-width:700px){.cards{grid-template-columns:1fr}}
 </style></head><body><div class="w">
-<h1>Einrichtung Cloud-Sync</h1><p class="sub">Makler-Prozess 2.1 · Nextcloud oder OneDrive/SharePoint vorbereiten · ca. 10 Minuten</p>
+<h1>Einrichtung Cloud-Sync</h1><p class="sub">Makler-Prozess 2.5.1 · Nextcloud, OneDrive/SharePoint oder gemeinsamer Ordner · ca. 10 Minuten</p>
 
 <div class="cards"><div class="card"><b>Nextcloud</b><br>Benötigt: Nextcloud-Adresse, Benutzername, <b>App-Passwort</b>, gemeinsamer Ordner.</div>
-<div class="card"><b>OneDrive / SharePoint</b><br>Benötigt: einmalige <b>App-Registrierung</b> im Microsoft-365-Konto des Büros (Anwendungs-ID), Zielordner.</div></div>
+<div class="card"><b>OneDrive / SharePoint</b><br>Benötigt: einmalige <b>App-Registrierung</b> im Microsoft-365-Konto des Büros (Anwendungs-ID), Zielordner.</div>
+<div class="card" style="grid-column:1/-1"><b>Gemeinsamer Ordner</b> (neu in 2.5, empfohlen, wenn die Microsoft-Anmeldung nicht klappt)<br>Benötigt: einen Ordner, der auf PC und Tablet abgeglichen wird – am PC der normale <b>OneDrive-Ordner</b>, auf dem Tablet <b>FolderSync</b> oder <b>Autosync for OneDrive</b>. Keine App-Registrierung, keine Anmeldung in Makler-Prozess. → <a href="#ordner">Abschnitt 2a</a> · Variante <b>Büro-NAS</b> (Daten bleiben im Büro) → <a href="#nas">Abschnitt 2b</a></div></div>
 
 <h2>1. Nextcloud</h2>
 <h3>App-Passwort erstellen (je Gerät empfohlen)</h3>
@@ -52,6 +53,48 @@ ol li{margin:6px 0}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}.c
 <tr><td><b>Mein OneDrive</b></td><td>alle Geräte melden sich mit <b>demselben</b> Büro-Konto an</td></tr>
 <tr><td><b>SharePoint-Website</b></td><td>Mitarbeiter mit <b>eigenen</b> Konten; Adresse z. B. <code>https://firma.sharepoint.com/sites/Makler</code> – der Ordner wird in der Dokumentbibliothek angelegt</td></tr>
 <tr><td><b>Mit mir geteilt</b></td><td>der Ordner <code>MaklerProzess</code> wurde aus einem anderen OneDrive mit Bearbeitungsrecht freigegeben</td></tr></table>
+
+<h2 id="ordner">2a. Gemeinsamer Ordner (OneDrive-Ordner auf PC und Tablet)</h2>
+<p>Makler-Prozess legt seine Dateien in einen Ordner. Die Übertragung zwischen den Geräten übernimmt <b>OneDrive am PC</b> und eine <b>Sync-App auf dem Tablet</b>. Jedes Gerät schreibt nur eigene Dateien – dadurch entstehen keine OneDrive-Konflikte. Die Daten sind wie bei den anderen Wegen mit dem Büro-Passwort verschlüsselt.</p>
+<h3>Am PC (zuerst)</h3>
+<ol><li>OneDrive ist angemeldet und läuft (Wolke unten rechts in der Taskleiste).</li>
+<li>Makler-Prozess: Einstellungen → Daten &amp; Sicherung → <b>Cloud-Sync einrichten</b> → <b>Gemeinsamer Ordner</b>. Vorgeschlagen wird <code>…\OneDrive\MaklerProzess</code> – übernehmen oder mit <b>Wählen …</b> einen anderen Ordner nehmen.</li>
+<li>Büro-Passwort festlegen → <b>Einrichten</b>. Danach den Wiederherstellungsschlüssel sichern.</li>
+<li>Im Explorer: Rechtsklick auf den Ordner <code>MaklerProzess</code> → <b>Immer auf diesem Gerät beibehalten</b>. So liegen die Dateien auch ohne Internet vollständig vor.</li></ol>
+<h3>Auf dem Tablet – Variante A: FolderSync</h3>
+<ol><li>FolderSync aus dem Play Store installieren, unter <b>Konten</b> das OneDrive-Konto des Büros hinzufügen.</li>
+<li>Neues <b>Ordnerpaar</b>: Konto OneDrive, entfernter Ordner <code>MaklerProzess</code>, lokaler Ordner z. B. <code>Interner Speicher/MaklerProzess</code>, Synchronisierungsart <b>Zwei-Wege</b>.</li>
+<li><b>Zeitplan</b>: z. B. alle 15 Minuten. Bei Bedarf zusätzlich „sofort synchronisieren“ bei Änderungen im lokalen Ordner (überwachte Ordner), falls angeboten.</li>
+<li>Einmal manuell synchronisieren und warten, bis alles übertragen ist.</li></ol>
+<h3>Auf dem Tablet – Variante B: Autosync for OneDrive</h3>
+<ol><li>„Autosync for OneDrive“ installieren, mit dem OneDrive-Konto des Büros anmelden.</li>
+<li>Ordnerpaar anlegen: lokaler Ordner z. B. <code>Interner Speicher/MaklerProzess</code> ↔ OneDrive-Ordner <code>MaklerProzess</code>, Methode <b>Zwei-Wege</b>.</li>
+<li>Intervall z. B. 15 Minuten; ersten Abgleich abwarten.</li></ol>
+<h3>Dann in Makler-Prozess (Android-App)</h3>
+<ol><li><b>Bestehendem Büro beitreten</b> → <b>Gemeinsamer Ordner</b> → <b>Ordner wählen</b> → den lokalen Ordner der Sync-App auswählen und <b>Zugriff erlauben</b> (die App sieht nur diesen Ordner).</li>
+<li>Büro-Passwort eingeben → Mitarbeiter wählen → PIN festlegen.</li></ol>
+<p class="tip">Die <b>Browser-App</b> kann keinen Ordner nutzen – dafür die Android-App verwenden.</p>
+<h3>Was ist anders als bei Nextcloud/OneDrive mit Anmeldung?</h3>
+<table><tr><th>Thema</th><th>Ordner-Modus</th></tr>
+<tr><td>Verzögerung</td><td>PC: OneDrive überträgt meist in Sekunden bis wenigen Minuten. Tablet: je nach Intervall der Sync-App (z. B. 15 Min.). Die Statusanzeige zeigt „<b>An Ordner übergeben</b>“ – das heißt: lokal abgelegt, die Sync-App übernimmt den Rest.</td></tr>
+<tr><td>Halbe Dateien</td><td>Kommt eine Datei erst teilweise an, wartet Makler-Prozess und liest sie beim nächsten Abgleich erneut. Nichts wird übersprungen.</td></tr>
+<tr><td>Kein Internet</td><td>Die App arbeitet normal weiter; die Sync-App überträgt, sobald wieder Verbindung besteht.</td></tr>
+<tr><td>Ordner fehlt</td><td>Anzeige „<b>Ordner nicht erreichbar</b>“ (z. B. OneDrive beendet, Laufwerk getrennt) – Änderungen warten lokal.</td></tr>
+<tr><td>Ordner verschoben / Tablet-Zugriff verloren</td><td>Einstellungen → Daten &amp; Sicherung → <b>Ordner neu wählen</b>. Ein Ordner mit einem anderen Büro wird abgelehnt.</td></tr>
+<tr><td>Warnung „Änderungspaket … fehlt seit über 24 Std.“</td><td>Am genannten Gerät „Jetzt synchronisieren“ ausführen und prüfen, ob OneDrive bzw. die Sync-App läuft. Fehlende eigene Pakete legt jedes Gerät automatisch neu ab.</td></tr></table>
+<p class="warn"><b>Datenschutz:</b> FolderSync bzw. Autosync greifen mit der Anmeldung des Büros auf OneDrive zu; die Daten im Ordner sind (bis auf <code>dateien</code>) verschlüsselt. Für OneDrive gilt der Microsoft-AVV des Büros.</p>
+
+<h2 id="nas">2b. Gemeinsamer Ordner auf der Büro-NAS (Netzlaufwerk)</h2>
+<p>Statt OneDrive kann der Ordner auf der <b>NAS im Büro</b> liegen. Im Büronetz gleichen alle Geräte über die NAS ab; <b>außerhalb</b> (Laptop unterwegs, Tablet beim Kunden) wird normal weitergearbeitet, und sobald das Gerät wieder im Büronetz ist, wird automatisch abgeglichen. Die Daten verlassen das Büro nicht.</p>
+<table><tr><th>Gerät</th><th>Einrichtung</th></tr>
+<tr><td>Büro-PC / Laptop</td><td>Freigabe als <b>Netzlaufwerk verbinden</b> (Explorer → Dieser PC → Netzlaufwerk verbinden, z. B. <code>N:</code> → <code>\\NAS\Freigabe</code>, „Verbindung bei Anmeldung wiederherstellen“). In Makler-Prozess: Cloud-Sync einrichten → <b>Gemeinsamer Ordner</b> → <b>Wählen …</b> → <code>N:\MaklerProzess</code>. Der direkte Pfad <code>\\NAS\Freigabe\MaklerProzess</code> funktioniert ebenso.</td></tr>
+<tr><td>Tablet</td><td>Android kann eine Freigabe nicht direkt einbinden. <b>FolderSync</b>: Konto <b>SMB/Windows-Freigabe</b> mit NAS-Adresse, Benutzer und Passwort → Ordnerpaar <code>MaklerProzess</code> (NAS) ↔ lokaler Ordner, <b>Zwei-Wege</b>, Intervall z. B. 15 Min., unter Bedingungen <b>nur im Büro-WLAN</b>. In Makler-Prozess dann diesen lokalen Ordner wählen (wie in 2a).</td></tr></table>
+<h3>Wichtig</h3>
+<ul><li><b>Windows-„Offlinedateien“ für das Netzlaufwerk ausgeschaltet lassen</b> (Systemsteuerung → Synchronisierungscenter → Offlinedateien verwalten). Makler-Prozess arbeitet unterwegs selbst lokal weiter; ein zusätzlicher Windows-Zwischenspeicher würde doppelte Stände erzeugen.</li>
+<li>Unterwegs zeigt die App „<b>Ordner nicht erreichbar</b>“ – das ist normal. Die App friert dabei nicht ein: antwortet das Laufwerk nicht innerhalb weniger Sekunden, wird lokal weitergearbeitet und alle 45 Sek. leise erneut geprüft.</li>
+<li>Zurück im Büro dauert es bis zu etwa einer Minute, bis Windows das Netzlaufwerk wieder verbunden hat und der Abgleich läuft – oder „Jetzt synchronisieren“ antippen.</li>
+<li>Wer auch <b>unterwegs</b> abgleichen möchte: NAS per VPN erreichbar machen oder – falls auf der NAS vorhanden – den Weg <b>Nextcloud</b> nutzen.</li>
+<li>Datensicherung der NAS (z. B. Snapshots) deckt den Ordner mit ab; zusätzlich legt jedes Gerät eigene Sicherungen an.</li></ul>
 
 <h2>3. Büro einrichten und Geräte verbinden</h2>
 <ol><li><b>Erstes Gerät</b> (mit den bisherigen Daten): Einstellungen → Daten &amp; Sicherung → <b>Cloud-Sync einrichten</b> → Anbieter → Anmeldung → <b>Büro-Passwort</b> (mind. 10 Zeichen) → Hochladen.</li>

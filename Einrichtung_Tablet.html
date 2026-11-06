@@ -83,6 +83,14 @@ ol li{margin:7px 0}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}.c
 <li>Mitarbeiter antippen → <b>PIN festlegen</b> (4–6 Ziffern, zweimal). Hat der Mitarbeiter am PC schon eine PIN, gilt diese.</li></ol>
 <p class="tip">Zum Ausprobieren ohne Cloud: „Ausprobieren mit Beispieldaten“. Später unter <b>Gerät → Gerät zurücksetzen</b> entfernen und dem Büro beitreten.</p>
 
+<h2 id="ordner">3a. Ordner-Modus: OneDrive-Ordner auf dem Tablet (neu in 2.5)</h2>
+<p>Statt Nextcloud oder Microsoft-Anmeldung kann die <b>Android-App</b> einen Ordner nutzen, den <b>FolderSync</b> oder <b>Autosync for OneDrive</b> mit dem OneDrive-Ordner des PCs abgleicht.</p>
+<ol><li>Am PC zuerst das Büro im Ordner anlegen (Einstellungen → Daten &amp; Sicherung → Cloud-Sync einrichten → <b>Gemeinsamer Ordner</b>).</li>
+<li>Auf dem Tablet die Sync-App einrichten: Ordnerpaar <code>MaklerProzess</code> (OneDrive) ↔ lokaler Ordner, <b>Zwei-Wege</b>, Intervall z. B. 15 Min.; ersten Abgleich abwarten.</li>
+<li>Makler-Prozess: <b>Bestehendem Büro beitreten</b> → <b>Gemeinsamer Ordner</b> → <b>Ordner wählen</b> (den lokalen Ordner der Sync-App) → Zugriff erlauben → Büro-Passwort.</li></ol>
+<p><b>Büro-NAS statt OneDrive:</b> In FolderSync ein Konto „SMB/Windows-Freigabe“ für die NAS anlegen, Ordnerpaar wie oben, Abgleich nur im Büro-WLAN. Unterwegs arbeitet die App mit dem lokalen Ordner weiter.</p>
+<p class="tip">Schritt-für-Schritt mit beiden Sync-Apps und Hinweisen zu Verzögerungen: <b>Einrichtung_Cloud.html</b>, Abschnitt 2a (OneDrive) und 2b (Büro-NAS). Die Browser-App unterstützt den Ordner-Modus nicht.</p>
+
 <h2 id="nextcloud">4. Nextcloud für die Browser-App freigeben (CORS)</h2>
 <p>Ein Browser darf nur auf fremde Server zugreifen, wenn diese es erlauben. Die <b>Android-App braucht das nicht</b>. Für die Browser-App muss die Nextcloud Zugriffe von <code>https://KONTO.github.io</code> erlauben – nur für die Dateischnittstelle <code>/remote.php/dav/</code>.</p>
 <p class="warn">Nur die eigene Herkunft eintragen (nie <code>*</code>). Bei gehosteter Nextcloud (Anbieter) ist das meist nicht einstellbar → Android-App verwenden.</p>

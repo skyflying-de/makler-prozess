@@ -1,5 +1,28 @@
 # Changelog – Makler-Prozess
 
+## 2.5.1 – 2026-11-06
+Ordner-Modus für die Büro-NAS: Netzlaufwerk am PC/Laptop, unterwegs weiterarbeiten, im Büronetz automatisch abgleichen.
+
+- **Kein Einfrieren bei nicht erreichbarem Netzlaufwerk:** Ordnerzugriffe laufen nicht-blockierend mit Zeitgrenze (8 Sek.); nach einem Ausfall wird der Ordner 30 Sek. nicht angefasst, damit hängende SMB-Zugriffe das Speichern nicht bremsen
+- **Schnellere Wiederaufnahme:** bei „Ordner nicht erreichbar“ prüft die App alle 45 Sek. leise, ob das Laufwerk wieder da ist
+- **Sicherer:** fehlt der Ordner selbst (Laufwerk getrennt, Ordner verschoben), legt die App ihn nicht mehr neu an, sondern meldet „Ordner nicht erreichbar“
+- **Hinweise im Assistenten und in den Einstellungen** auf die Büro-NAS (Netzlaufwerk bzw. `\\NAS\Freigabe`)
+- **Doku:** Einrichtung_Cloud.html Abschnitt 2b (Netzlaufwerk, FolderSync mit SMB nur im Büro-WLAN, Windows-Offlinedateien aus), Einrichtung_Tablet.html und Hilfe ergänzt
+- Tests: folder.e2e.js um das Szenario „Laptop unterwegs, Netzlaufwerk hängt“ erweitert (45 Prüfungen)
+
+## 2.5.0 – 2026-11-05
+Gemeinsamer Ordner als dritter Cloud-Weg – ohne App-Registrierung und ohne Anmeldung in der App; Abgleich über den OneDrive-Ordner am PC und FolderSync bzw. Autosync am Tablet.
+
+- **Neu – Ordner-Modus „Gemeinsamer Ordner“** als dritter Sync-Weg neben Nextcloud und OneDrive/SharePoint – ohne App-Registrierung und ohne Anmeldung in der App. Am PC wird der OneDrive-Ordner automatisch vorgeschlagen (…\OneDrive\MaklerProzess), auf dem Tablet gleicht FolderSync oder „Autosync for OneDrive“ den Ordner ab
+- **Ablauf:** am PC „Cloud-Sync einrichten → Gemeinsamer Ordner“, danach am Tablet „Bestehendem Büro beitreten → Gemeinsamer Ordner → Ordner wählen“
+- **Android-App:** neue native Erweiterung FolderAccess (Speicherzugriffs-Framework); die App erhält nur auf den gewählten Ordner dauerhaften Zugriff. Abgleich zusätzlich beim Zurückkehren in die App
+- **Windows:** atomisches Schreiben (Zwischendatei + Umbenennen, mit Wiederholung bei kurz gesperrten Dateien), Ordner-Beobachtung lädt neue Dateien sofort, Schutz gegen Pfade außerhalb des Ordners
+- **Robust bei verzögerter oder halber Übertragung:** unvollständige Pakete werden nie übersprungen, sondern beim nächsten Abgleich erneut gelesen; Beitritt wartet auf vollständige Büro-Datei/Snapshot; jedes Gerät legt beschädigte oder fehlende eigene Pakete selbst neu ab; Warnung, wenn ein Paket über 24 Std. fehlt
+- **Statusanzeige:** „An Ordner übergeben“, „Ordner nicht erreichbar“ (lokal weiterarbeiten), „Ordner-Zugriff nötig“; Einstellungen mit „Ordner öffnen“ und „Ordner neu wählen“ (Ordner mit anderem Büro wird abgelehnt)
+- **Browser-App:** Ordner-Modus nicht verfügbar (Hinweis im Assistenten)
+- **Doku:** Einrichtung_Cloud.html Abschnitt 2a (PC, FolderSync, Autosync, Verzögerungen), Einrichtung_Tablet.html Abschnitt 3a, Hilfe und Anleitung ergänzt
+- Tests: neue E2E-Tests folder.e2e.js (40 Prüfungen, simulierter OneDrive-Abgleich mit Verzögerung, halben Dateien, Zeitsprung, Ausfall) und folder-apk.e2e.js (22 Prüfungen, Android-Weg)
+
 ## 2.4.0 – 2026-11-02
 Übergabeprotokoll erweitert: Zimmertürschlüssel, Anmerkungen/weitere Mängel, Sonstiges, Anleitungen, „+“-Menü je Raum; Platz für Android-Tasten.
 

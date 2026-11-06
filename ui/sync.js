@@ -5,6 +5,8 @@ const SY = { on: false, state: null, prov: null, key: null, status: "aus", msg: 
 const SY_TE = new TextEncoder(), SY_TD = new TextDecoder();
 const SY_INTERVAL = 120000, SY_DEBOUNCE = 3000, SY_SNAP_EVERY = 150;
 const SY_LAZY = !!(window.PLATFORM && PLATFORM.lazyFiles), SY_PKCE = !!(window.PLATFORM && PLATFORM.msFlow === "pkce");
+const SY_FOLDER = !window.PLATFORM || !!PLATFORM.folderMode; // Ordner-Modus: Windows-App und Android-App (nicht Browser-App)
+const syIsFolder = () => !!(ENV && ENV.cfg.cloud && ENV.cfg.cloud.provider === "folder");
 
 /* ---------- Transport (Electron: über Hauptprozess, ohne Browser-Sperren) ---------- */
 const SYT = {
@@ -24,6 +26,7 @@ async function syProvider(cloud) {
     if (!pass) { const e = new Error("Nextcloud-App-Passwort fehlt."); e.code = "auth"; throw e; }
     return PV.webdav({ root: cloud.root, folder: cloud.folder, user: cloud.user, pass, host: cloud.host }, SYT);
   }
+  if (cloud.provider === "folder") { if (!SY_FOLDER) throw new Error("Der Ordner-Modus ist in der Browser-App nicht verfügbar – bitte die Android-App verwenden."); return PV.folder({ root: cloud.root }, o => api.fd(o)); }
   if (cloud.provider === "onedrive") return PV.graph(cloud, SYT, { get: () => api.secretGet("msRefresh"), set: v => api.secretSet("msRefresh", v) });
   throw new Error("Unbekannter Anbieter");
 }
@@ -48,11 +51,12 @@ async function cloudBoot() {
     SY.on = true;
     clearInterval(SY.timer); SY.timer = setInterval(() => cloudSync("takt"), SY_INTERVAL);
     window.addEventListener("online", () => cloudSync("online"));
+    if (syIsFolder() && api.fdWatch) { api.fdWatch(ENV.cfg.cloud.root).catch(() => {}); if (!SY.fdHooked) { SY.fdHooked = 1; api.onFdChange(() => { clearTimeout(SY.fdT); SY.fdT = setTimeout(() => cloudSync("ordner"), 800); }); } }
     setTimeout(() => cloudSync("start"), 400);
     setTimeout(syChooseUser, 900);
   } catch (e) { syStatus("fehler", e.message); }
 }
-function cloudStop() { SY.on = false; clearInterval(SY.timer); clearTimeout(SY.deb); SY.state = null; SY.prov = null; SY.key = null; syStatus("aus", ""); }
+function cloudStop() { if (api.fdWatch) api.fdWatch(null).catch(() => {}); SY.on = false; clearInterval(SY.timer); clearTimeout(SY.deb); SY.state = null; SY.prov = null; SY.key = null; syStatus("aus", ""); }
 
 /* von der App nach jedem Speichern aufgerufen */
 function cloudAfterSave() {
@@ -80,17 +84,19 @@ async function cloudSync(reason) {
     await syDevicesLoad();
     const res = await syPull();
     await syPush();
+    await syRepairOwn();
     await syFiles();
     await syDevicePublish();
     if (SY.state.seq - (SY.state.snapSeq || 0) >= SY_SNAP_EVERY) await sySnapshot();
     SY.state.lastSync = Date.now(); syPersist(true);
+    if (syIsFolder() && api.fdWatch) api.fdWatch(ENV.cfg.cloud.root).catch(() => {}); // Beobachtung nach Ausfall neu starten
     syStatus("ok");
     if (res.conflicts) toast(`${res.conflicts} gleichzeitige Änderung${res.conflicts > 1 ? "en" : ""} zusammengeführt – siehe Konfliktprotokoll`);
   } catch (e) {
     console.warn("Sync", reason, e);
-    const offline = /Keine Verbindung|ERR_|ENOTFOUND|ECONN|net::|timed out|getaddrinfo/i.test(e.message);
-    syStatus(offline ? "offline" : e.code === "auth" ? "anmeldung" : "fehler", offline ? "Keine Verbindung zur Cloud" : e.message);
-    if (e.code === "auth") SY.prov = null;
+    const fold = syIsFolder(), offline = e.code !== "folder" && e.code !== "auth" && (e.code === "offline" || /Keine Verbindung|ERR_|ENOTFOUND|ECONN|net::|timed out|getaddrinfo|Ordner nicht erreichbar/i.test(e.message));
+    syStatus(offline ? "offline" : e.code === "auth" || e.code === "folder" ? "anmeldung" : "fehler", offline ? (fold ? "Ordner nicht erreichbar – es wird lokal weitergearbeitet" : "Keine Verbindung zur Cloud") : e.message);
+    if (e.code === "auth" || e.code === "folder") SY.prov = null;
   } finally {
     SY.running = false; SY.progress = "";
     if (SY.again) { SY.again = false; setTimeout(() => cloudSync("nachlauf"), 500); }
@@ -104,13 +110,30 @@ async function syPull() {
   for (const d of dirs) {
     const have = st.cursors[d.name] || 0;
     const files = (await P.list("sync/" + d.name)).map(f => f.name).filter(n => /^\d{8}\.mpk$/.test(n)).map(n => parseInt(n, 10)).filter(n => n > have).sort((a, b) => a - b);
-    for (let i = 0; i < files.length; i += 4) {
+    // Lücken (Paket fehlt noch) oder halb übertragene Pakete: hier anhalten, Stand nicht weiterschieben, nächste Runde erneut versuchen
+    let gap = false;
+    for (let i = 0; i < files.length && !gap; i += 4) {
       const chunk = files.slice(i, i + 4);
       SY.progress = `Lade Änderungen ${d.name.slice(0, 6)} (${Math.min(i + 4, files.length)}/${files.length})`; syPill();
-      const got = await Promise.all(chunk.map(async n => { const b = await P.get(`sync/${d.name}/${SC.pad(n)}.mpk`); return b ? { n, pkg: await SC.open(b, SY.key) } : null; }));
-      for (const g of got) { if (!g) break; ops.push(...g.pkg.ops); newCur[d.name] = g.n; }
+      const got = await Promise.all(chunk.map(async n => {
+        const b = await P.get(`sync/${d.name}/${SC.pad(n)}.mpk`); if (!b) return null;
+        try { return { n, pkg: await SC.open(b, SY.key) }; } catch (e) { console.warn("Paket unvollständig, später erneut", d.name, n); SY.partial = (SY.partial || 0) + 1; return null; }
+      }));
+      let expect = (newCur[d.name] || have) + 1;
+      for (let k = 0; k < chunk.length; k++) {
+        const g = got[k], n = chunk[k];
+        if (g && n === expect) { ops.push(...g.pkg.ops); newCur[d.name] = n; expect++; continue; }
+        // Paket fehlt oder ist unvollständig: nie überspringen – abwarten. Das sendende Gerät legt fehlende/defekte eigene Pakete selbst neu ab (syRepairOwn).
+        const gk = d.name + ":" + expect, gaps = st.gaps = st.gaps || {};
+        if (!gaps[gk]) gaps[gk] = Date.now();
+        gap = true; break;
+      }
     }
+    if (st.gaps) for (const gk in st.gaps) { const [dv, gn] = gk.split(":"); if (dv === d.name && (+gn <= (newCur[d.name] || have) || !gap)) delete st.gaps[gk]; }
   }
+  // Warnung, wenn ein Paket seit über 24 Std. fehlt, obwohl das sendende Gerät seitdem aktiv war (dann ist es kein reines Übertragungs-Warten mehr)
+  SY.gapWarn = Object.entries(st.gaps || {}).filter(([gk, since]) => { const dv = gk.split(":")[0], info = SY.devList.find(x => x.id === dv); return Date.now() - since > 864e5 && info && info.lastSeen > since + 36e5; })
+    .map(([gk]) => { const [dv, gn] = gk.split(":"); return `Änderungspaket ${gn} von „${SY.devs[dv] || dv.slice(0, 6)}“ fehlt seit über 24 Std. Bitte dort „Jetzt synchronisieren“ ausführen und prüfen, ob OneDrive bzw. die Sync-App überträgt.`; });
   let res = { changed: 0, conflicts: 0 };
   if (ops.length) {
     res = SC.apply(st, DB, ops, SY.devs);
@@ -128,8 +151,23 @@ async function syPush() {
     const pkg = await SC.seal({ v: 1, dev: st.dev, seq: st.seq, created: Date.now(), ops }, SY.key);
     SY.progress = `Sende ${ops.length} Änderung${ops.length > 1 ? "en" : ""}`; syPill();
     await SY.prov.put(`sync/${st.dev}/${SC.pad(st.seq)}.mpk`, pkg);
+    if (syIsFolder()) syKeepSent(st, st.seq, pkg);
     st.outbox.splice(0, ops.length); st.seq++; syPersist(true);
   }
+}
+/* Ordner-Modus: die letzten eigenen Pakete merken und prüfen, ob sie vollständig im Ordner liegen (Stromausfall, Sync-App hat gelöscht …) */
+function syKeepSent(st, seq, pkg) {
+  const k = st.sent = st.sent || []; k.push({ seq, size: pkg.length, b64: SC.b64(pkg) });
+  let tot = k.reduce((a, x) => a + x.b64.length, 0);
+  while (k.length > 30 || (k.length > 1 && tot > 4e6)) tot -= k.shift().b64.length;
+}
+async function syRepairOwn() {
+  const st = SY.state; if (!syIsFolder() || !(st.sent || []).length) return 0;
+  const have = {}; (await SY.prov.list("sync/" + st.dev)).forEach(f => have[f.name] = f.size);
+  let n = 0;
+  for (const x of st.sent) { const name = SC.pad(x.seq) + ".mpk"; if (have[name] !== x.size) { await SY.prov.put(`sync/${st.dev}/${name}`, SC.unb64(x.b64)); n++; } }
+  if (n) console.warn(`${n} eigene Pakete neu abgelegt`);
+  return n;
 }
 async function syFiles() {
   const st = SY.state, P = SY.prov;
@@ -221,8 +259,10 @@ async function syJoinOffice(prov, secret, onStep) {
   onStep("Datenstand wird geladen …");
   const snaps = (await prov.list("snapshot")).map(f => f.name).filter(n => n.endsWith(".mpk")).sort();
   const st = SC.newState(info.id);
-  if (snaps.length) {
-    const snap = await SC.open(await prov.get("snapshot/" + snaps[snaps.length - 1]), key);
+  let snap = null;
+  for (let i = snaps.length - 1; i >= 0 && !snap; i--) { try { snap = await SC.open(await prov.get("snapshot/" + snaps[i]), key); } catch (e) { console.warn("Snapshot unvollständig, nehme älteren", snaps[i]); } }
+  if (snaps.length && !snap) { const e = new Error("Der Datenstand im Ordner ist noch nicht vollständig übertragen. Bitte warten, bis OneDrive bzw. die Sync-App fertig ist, und erneut versuchen."); e.code = "partial"; throw e; }
+  if (snap) {
     Object.assign(st, { base: snap.base, meta: snap.meta, dead: snap.dead || {}, locks: snap.locks || {}, cursors: { ...snap.cursors } });
     delete st.cursors[info.id];
     st.clock = snap.t;
@@ -270,9 +310,9 @@ function syPillHTML() {
   const pend = SY.state ? SY.state.outbox.length + SY.state.fileDel.length : 0;
   const map = {
     "läuft": ["sync", "var(--acc)", SY.progress || "Synchronisiere …"],
-    ok: ["ok", "var(--ok)", `Synchron · ${syAgo(SY.state && SY.state.lastSync)}${pend ? ` · ${pend} offen` : ""}`],
-    offline: ["off", "var(--warn)", `Offline${pend ? ` · ${pend} Änderung${pend > 1 ? "en" : ""} warten` : ""}`],
-    anmeldung: ["auth", "var(--bad)", "Cloud-Anmeldung nötig"],
+    ok: ["ok", "var(--ok)", `${syIsFolder() ? "An Ordner übergeben" : "Synchron"} · ${syAgo(SY.state && SY.state.lastSync)}${pend ? ` · ${pend} offen` : ""}`],
+    offline: ["off", "var(--warn)", `${syIsFolder() ? "Ordner nicht erreichbar" : "Offline"}${pend ? ` · ${pend} Änderung${pend > 1 ? "en" : ""} warten` : ""}`],
+    anmeldung: ["auth", "var(--bad)", syIsFolder() ? "Ordner-Zugriff nötig" : "Cloud-Anmeldung nötig"],
     fehler: ["err", "var(--bad)", "Sync-Fehler"],
     aus: ["", "var(--mute)", "Cloud"]
   }[SY.status] || ["", "var(--mute)", SY.status];
@@ -280,12 +320,14 @@ function syPillHTML() {
 }
 function syPill() { const el = document.getElementById("syncpill"); if (el) el.outerHTML = syPillHTML(); else if (SY.on) { const d = document.querySelector("#dock .sp"); if (d) d.insertAdjacentHTML("afterend", syPillHTML()); } }
 setInterval(() => { if (SY.on && SY.status === "ok") syPill(); }, 30000);
+// Ordner-Modus: Netzlaufwerk/NAS nicht erreichbar (z. B. Laptop unterwegs) → alle 45 Sek. leise prüfen, ob es wieder da ist
+setInterval(() => { if (SY.on && SY.status === "offline" && syIsFolder() && !SY.running) cloudSync("ordner-zurück"); }, 45000);
 
 /* ---------- Einstellungen: Karte Betriebsmodus ---------- */
 function vCloudCard() {
   const c = ENV.cfg;
   if (c.mode !== "cloud") return `<div class="card" id="cloudcard"><h2>${ic("swap", 'style="width:17px"')}Betriebsmodus<span class="sp"></span><div class="seg"><button class="on">Lokal</button><button onclick="cloudWizard('${MOBILE ? "join" : "create"}')">Cloud-Sync</button></div></h2>
-    <p class="hint" style="margin-top:0">Aktuell arbeitet die App <b>nur auf diesem Gerät</b>. Mit Cloud-Sync teilen sich PC und Tablet die Daten über <b>Nextcloud</b> oder <b>OneDrive</b> – jedes Gerät arbeitet auch offline und gleicht später ab. Dokumente liegen lesbar im Cloud-Ordner, die Daten selbst werden verschlüsselt.</p>
+    <p class="hint" style="margin-top:0">Aktuell arbeitet die App <b>nur auf diesem Gerät</b>. Mit Cloud-Sync teilen sich PC und Tablet die Daten über <b>Nextcloud</b>, <b>OneDrive</b> oder einen <b>gemeinsamen Ordner</b> (z. B. OneDrive-Ordner auf PC und Tablet) – jedes Gerät arbeitet auch offline und gleicht später ab. Dokumente liegen lesbar im Cloud-Ordner, die Daten selbst werden verschlüsselt.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${MOBILE ? "" : `<button class="btn pri" onclick="cloudWizard('create')">${ic("plus")}Cloud-Sync einrichten (neues Büro)</button>`}<button class="btn ${MOBILE ? "pri" : ""}" onclick="cloudWizard('join')">${ic("down")}Bestehendem Büro beitreten</button></div>${MOBILE ? '<p class="hint">Das Büro wird am PC eingerichtet. Beim Beitritt werden die Beispieldaten dieses Tablets ersetzt.</p>' : ""}</div>`;
   const st = SY.state || {}, cl = c.cloud || {}, pend = (st.outbox || []).length;
   const devs = (SY.devList || []).map(d => `<div class="devrow">${ic(/Android|Tablet/i.test(d.platform) ? "doc" : "home", 'style="width:16px"')}<b>${esc(d.name)}</b>${d.id === st.dev ? ' <span class="tag grey">dieses Gerät</span>' : ""}<span class="hint">${esc(d.platform || "")} · v${esc(d.version || "?")}${d.user ? " · " + esc(d.user) : ""}</span><span class="sp"></span><span class="hint">${syAgo(d.lastSeen)}</span></div>`).join("") || '<div class="hint">Wird beim nächsten Abgleich geladen.</div>';
@@ -293,17 +335,18 @@ function vCloudCard() {
   const short = v => { if (v === undefined) return "– (entfernt)"; let x = v; try { x = JSON.parse(v); } catch (e) {} x = typeof x === "object" ? JSON.stringify(x) : String(x); return esc(x.length > 60 ? x.slice(0, 57) + "…" : x); };
   return `<div class="card" id="cloudcard"><h2>${ic("swap", 'style="width:17px"')}Betriebsmodus<span class="sp"></span><div class="seg"><button onclick="cloudLeave()">Lokal</button><button class="on">Cloud-Sync</button></div></h2>
    <div class="two" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)"><div class="ro">
-    <span>Anbieter</span><span><b>${esc(cl.provider === "onedrive" ? "OneDrive / SharePoint" : "Nextcloud")}</b> · ${esc(cl.provider === "onedrive" ? (cl.folderLabel || "") : (cl.host || "") + " / " + (cl.folder || ""))}</span>
-    ${cl.provider === "nextcloud" ? `<span>Benutzer</span><span>${esc(cl.user || "")}</span>` : `<span>Anmeldung</span><span>${esc(cl.account || "Microsoft-Konto")}</span>`}
+    <span>Anbieter</span><span><b>${esc(cl.provider === "folder" ? "Gemeinsamer Ordner" : cl.provider === "onedrive" ? "OneDrive / SharePoint" : "Nextcloud")}</b>${cl.provider === "folder" ? `<div class="hint" style="word-break:break-all">${esc(cl.label || cl.root || "")}</div>` : " · " + esc(cl.provider === "onedrive" ? (cl.folderLabel || "") : (cl.host || "") + " / " + (cl.folder || ""))}</span>
+    ${cl.provider === "nextcloud" ? `<span>Benutzer</span><span>${esc(cl.user || "")}</span>` : cl.provider === "folder" ? `<span>Übertragung</span><span class="hint" style="margin:0">Die App legt Änderungen im Ordner ab; <b>${MOBILE ? "die Sync-App (FolderSync / Autosync)" : "OneDrive, die NAS bzw. der Sync-Dienst"}</b> bringt sie zu den anderen Geräten. Je nach Takt dauert das einige Minuten; ist der Ordner nicht erreichbar, wird lokal weitergearbeitet.</span>` : `<span>Anmeldung</span><span>${esc(cl.account || "Microsoft-Konto")}</span>`}
     <span>Gerät</span><span><input value="${esc(c.deviceName || "")}" style="max-width:220px;padding:4px 8px" onchange="cloudRename(this.value)"></span>
-    <span>Status</span><span>${syPillHTML().replace('id="syncpill"', "")}${SY.msg && SY.status !== "ok" ? `<div class="hint" style="color:var(--bad)">${esc(SY.msg)}</div>` : ""}</span>
+    <span>Status</span><span>${syPillHTML().replace('id="syncpill"', "")}${SY.msg && SY.status !== "ok" ? `<div class="hint" style="color:var(--bad)">${esc(SY.msg)}</div>` : ""}${(SY.gapWarn || []).map(t => `<div class="hint" style="color:var(--warn)">${esc(t)}</div>`).join("")}</span>
     <span>Ausstehend</span><span>${pend} Änderung${pend === 1 ? "" : "en"} · ${(st.fileDel || []).length} Löschungen</span>
     <span>Verschlüsselung</span><span style="color:var(--ok)">${ic("lock", 'style="width:13px;vertical-align:-2px"')} AES-256 · Büro-Passwort</span>
-    <span>Takt</span><span>3 Sek. nach Änderung + alle 2 Min.</span></div>
+    <span>Takt</span><span>3 Sek. nach Änderung + alle 2 Min.${cl.provider === "folder" ? (MOBILE ? " + beim Öffnen der App" : " + sofort bei neuen Dateien im Ordner") : ""}</span></div>
     <div><b style="font-size:13px">Geräte im Büro</b><div style="margin-top:6px">${devs}</div></div></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn pri" onclick="cloudSync('knopf')">${ic("swap")}Jetzt synchronisieren</button><button class="btn" onclick="cloudRecovery()">${ic("lock")}Wiederherstellungsschlüssel</button>
     ${cl.provider === "nextcloud" ? `<button class="btn" onclick="api.openExternal('${esc((cl.web || "").replace(/'/g, ""))}')">${ic("folder")}Cloud-Ordner im Browser</button>` : ""}
-    <button class="btn" onclick="cloudReauth()">${ic("edit")}Anmeldung erneuern</button><button class="btn" onclick="cloudReload()">${ic("down")}Gerät neu aus Cloud laden</button>${MOBILE ? "" : `<button class="btn" onclick="api.openDoc('Einrichtung_Tablet.html').catch(e=>toast(e.message))">${ic("doc")}Tablet einrichten</button>`}</div>
+    ${cl.provider === "folder" && !MOBILE ? `<button class="btn" onclick="api.openPath('@cloud').catch(e=>toast(e.message))">${ic("folder")}Ordner öffnen</button>` : ""}
+    <button class="btn" onclick="cloudReauth()">${ic("edit")}${cl.provider === "folder" ? "Ordner neu wählen" : "Anmeldung erneuern"}</button><button class="btn" onclick="cloudReload()">${ic("down")}Gerät neu aus Cloud laden</button>${MOBILE ? "" : `<button class="btn" onclick="api.openDoc('Einrichtung_Tablet.html').catch(e=>toast(e.message))">${ic("doc")}Tablet einrichten</button>`}</div>
    <h3 style="font-size:14px;margin:16px 0 6px">Konfliktprotokoll <span class="hint">gleichzeitige Änderungen am selben Feld</span>${conf.length ? `<button class="btn sm" style="float:right" onclick="SY.state.conflicts=[];syPersist();render()">Leeren</button>` : ""}</h3>
    ${conf.length ? `<table><tr><th>Zeit</th><th>Datensatz · Feld</th><th>Hier</th><th>Anderes Gerät</th><th>Ergebnis</th></tr>${conf.map(x => `<tr><td class="muted">${dt(x.at)} ${tm(x.at)}</td><td>${esc(syRecLabel(x.k))}<div class="hint">${esc(syFieldLabel(x))}</div></td><td>${short(x.mine)}</td><td>${short(x.theirs)}<div class="hint">${esc(SY.devs[x.dev] || x.devName || "")}</div></td><td>${x.winner === "theirs" ? '<span class="tag sale">anderes Gerät</span>' : '<span class="tag grey">dieses Gerät</span>'}${x.reason ? `<div class="hint">${esc(x.reason)}</div>` : ""}</td></tr>`).join("")}</table>` : '<div class="hint">Keine Konflikte.</div>'}
   </div>`;
@@ -347,15 +390,23 @@ async function cloudRecovery() {
 
 /* ---------- Assistent: Cloud einrichten / beitreten ---------- */
 function cloudWizard(mode, opt = {}) {
-  const W = { mode, step: 1, prov: (ENV.cfg.cloud && ENV.cfg.cloud.provider) || "nextcloud", nc: { server: "", user: "", pass: "", folder: "MaklerProzess" }, ms: { clientId: (ENV.cfg.lastMs || {}).clientId || "", tenant: (ENV.cfg.lastMs || {}).tenant || "organizations", target: "me", folder: "MaklerProzess", siteUrl: "", shared: null, sharedList: null, logged: false, account: "" }, pw: "", pw2: "", secret: "", devName: ENV.cfg.deviceName || "", busy: false, log: [], provider: null, cloudCfg: null, err: "" };
+  const W = { mode, step: 1, prov: (ENV.cfg.cloud && ENV.cfg.cloud.provider) || (SY_FOLDER ? "folder" : "nextcloud"), fd: { root: "", label: "", sugg: null }, nc: { server: "", user: "", pass: "", folder: "MaklerProzess" }, ms: { clientId: (ENV.cfg.lastMs || {}).clientId || "", tenant: (ENV.cfg.lastMs || {}).tenant || "organizations", target: "me", folder: "MaklerProzess", siteUrl: "", shared: null, sharedList: null, logged: false, account: "" }, pw: "", pw2: "", secret: "", devName: ENV.cfg.deviceName || "", busy: false, log: [], provider: null, cloudCfg: null, err: "" };
   const el = document.createElement("div"); el.className = "wiz"; document.body.appendChild(el);
-  const steps = mode === "create" ? ["Anbieter", "Verbindung", "Büro-Passwort", "Hochladen"] : ["Anbieter", "Verbindung", "Büro-Passwort", "Laden"];
+  const steps = () => mode === "create" ? ["Anbieter", W.prov === "folder" ? "Ordner" : "Verbindung", "Büro-Passwort", W.prov === "folder" ? "Anlegen" : "Hochladen"] : ["Anbieter", W.prov === "folder" ? "Ordner" : "Verbindung", "Büro-Passwort", "Laden"];
   const close = () => { W.cancel = true; el.remove(); if (opt.first) location.reload(); };
   const draw = () => {
     let body = "";
     if (W.step === 1) body = `<p>${mode === "create" ? "Die Daten dieses Geräts werden zum gemeinsamen Büro-Stand in der Cloud." : "Dieses Gerät übernimmt den Büro-Stand aus der Cloud."} Wo liegt der Cloud-Ordner?</p>
       <div class="choice"><button data-p="nextcloud" class="${W.prov === "nextcloud" ? "sel" : ""}">${ic("folder", 'style="width:24px;height:24px"')}<b>Nextcloud</b><span>Eigene oder gehostete Nextcloud. Anmeldung mit Benutzername und App-Passwort.</span></button>
-      <button data-p="onedrive" class="${W.prov === "onedrive" ? "sel" : ""}">${ic("doc", 'style="width:24px;height:24px"')}<b>OneDrive / SharePoint</b><span>Microsoft 365. Einmalig ist eine App-Registrierung des Büros nötig (Anwendungs-ID).</span></button></div>`;
+      <button data-p="onedrive" class="${W.prov === "onedrive" ? "sel" : ""}">${ic("doc", 'style="width:24px;height:24px"')}<b>OneDrive / SharePoint</b><span>Microsoft 365 mit Anmeldung in der App. Einmalig ist eine App-Registrierung des Büros nötig (Anwendungs-ID).</span></button>
+      <button data-p="folder" class="${W.prov === "folder" ? "sel" : ""}" ${SY_FOLDER ? "" : "disabled"}>${ic("swap", 'style="width:24px;height:24px"')}<b>Gemeinsamer Ordner</b><span>${SY_FOLDER ? "Ein Ordner, der auf PC und Tablet abgeglichen wird – z. B. OneDrive, Dropbox oder NAS. Keine Anmeldung in der App nötig." : "Nur in der Windows- und der Android-App verfügbar, nicht in der Browser-App."}</span></button></div>`;
+    else if (W.step === 2 && W.prov === "folder") body = MOBILE ? `<p>Den Ordner wählen, den <b>FolderSync</b> oder <b>Autosync for OneDrive</b> mit dem OneDrive-Ordner des PCs bzw. der Büro-NAS (FolderSync mit SMB) abgleicht. Die App erhält nur auf diesen Ordner Zugriff.</p>
+      <div class="form"><label>Ordner</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b data-fdlabel>${W.fd.root ? esc(W.fd.label) : '<span class="hint">noch nicht gewählt</span>'}</b><button class="btn ${W.fd.root ? "" : "pri"}" data-a="fdpick">${ic("folder")}${W.fd.root ? "Anderen Ordner wählen" : "Ordner wählen"}</button></div></div>
+      <p class="hint">Die Sync-App muss <b>in beide Richtungen</b> abgleichen. Einrichtung Schritt für Schritt: <a href="#" onclick="api.openDoc('Einrichtung_Tablet.html');return false">Anleitung Tablet</a>.</p>`
+      : `<p>${mode === "create" ? "In diesem Ordner legt die App das Büro an." : "Den Ordner wählen, in dem am PC das Büro angelegt wurde."} Er sollte im <b>OneDrive-Ordner</b> liegen – oder auf der <b>Büro-NAS</b> (Netzlaufwerk, z. B. <code>N:\\MaklerProzess</code> oder <code>\\\\NAS\\Freigabe\\MaklerProzess</code>). Außerhalb des Büros wird lokal weitergearbeitet und später abgeglichen.</p>
+      ${(W.fd.sugg || []).length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">${W.fd.sugg.map((x, i) => `<button class="btn sm" data-sug="${i}">${ic("folder")}${esc(x.label)}: …\\${esc(x.path.split(/[\\/]/).slice(-2).join("\\"))}</button>`).join("")}</div>` : W.fd.sugg ? `<p class="hint">Kein OneDrive-Ordner auf diesem PC gefunden – bitte Ordner wählen.</p>` : ""}
+      <div class="form"><label>Ordner</label><div style="display:flex;gap:8px;min-width:0"><input name="fdroot" value="${esc(W.fd.root)}" placeholder="z. B. C:\\Users\\Name\\OneDrive\\MaklerProzess" style="flex:1;min-width:0"><button class="btn" data-a="fdpick">${ic("folder")}Wählen …</button></div></div>
+      <p class="hint">Die Daten liegen dort <b>verschlüsselt</b> (Büro-Passwort), Dokumente lesbar im Unterordner „dateien“. Jedes Gerät schreibt nur eigene Dateien – so entstehen keine OneDrive-Konflikte. <a href="#" onclick="api.openDoc('Einrichtung_Cloud.html');return false">Anleitung Ordner-Modus</a></p>`;
     else if (W.step === 2 && W.prov === "nextcloud") body = `<div class="form"><label>Nextcloud-Adresse</label><input name="server" value="${esc(W.nc.server)}" placeholder="https://cloud.beispiel.de">
       <label>Benutzername</label><input name="user" value="${esc(W.nc.user)}" autocomplete="username">
       <label>App-Passwort</label><input name="pass" type="password" value="${esc(W.nc.pass)}" autocomplete="new-password" placeholder="Nextcloud → Einstellungen → Sicherheit → App-Passwort">
@@ -380,23 +431,25 @@ function cloudWizard(mode, opt = {}) {
       <div class="form"><label>Büro-Passwort</label><input name="secret" type="password" value="${esc(W.secret)}" autocomplete="current-password"><label>Name dieses Geräts</label><input name="dev" value="${esc(W.devName)}"></div>
       ${DB && !opt.first ? `<div class="banner" style="background:var(--warn-soft);color:var(--warn);margin-top:12px">${ic("bell", 'style="width:16px"')}Die bisherigen Daten auf diesem Gerät werden durch den Büro-Stand ersetzt (vorher wird automatisch gesichert).</div>` : ""}`;
     else body = `<div class="wizlog">${W.log.map((l, i) => `<div>${i === W.log.length - 1 && W.busy ? '<i class="spin"></i>' : ic("check", 'style="width:14px;color:var(--ok)"')}${esc(l)}</div>`).join("")}</div>
-      ${!W.busy && !W.err ? `<div class="banner" style="margin-top:12px">${ic("check", 'style="width:16px"')}${mode === "create" ? "Cloud-Sync ist eingerichtet. Weitere Geräte: „Bestehendem Büro beitreten“ mit demselben Cloud-Ordner und Büro-Passwort." : "Dieses Gerät ist mit dem Büro verbunden."}</div>` : ""}`;
+      ${!W.busy && !W.err ? `<div class="banner" style="margin-top:12px">${ic("check", 'style="width:16px"')}${mode === "create" ? (W.prov === "folder" ? "Das Büro liegt im Ordner. Sobald OneDrive bzw. die Sync-App ihn übertragen hat: am Tablet „Bestehendem Büro beitreten“ → „Gemeinsamer Ordner“ mit demselben Büro-Passwort." : "Cloud-Sync ist eingerichtet. Weitere Geräte: „Bestehendem Büro beitreten“ mit demselben Cloud-Ordner und Büro-Passwort.") : "Dieses Gerät ist mit dem Büro verbunden."}</div>` : ""}`;
     el.innerHTML = `<div class="wizbox"><div class="wizhead"><div class="lg big">${ic("swap", 'style="width:26px;height:26px"')}</div><div><h1>${mode === "create" ? "Cloud-Sync einrichten" : "Bestehendem Büro beitreten"}</h1><span class="hint">${mode === "create" ? "Neues Büro aus den Daten dieses Geräts" : "Büro-Stand aus der Cloud übernehmen"}</span></div></div>
-     <div class="steps" style="margin:16px 0">${steps.map((s, i) => `<div class="step ${i + 1 < W.step ? "done" : i + 1 === W.step ? "cur" : ""}" style="cursor:default"><b>${i + 1}</b>${s}</div>`).join("")}</div>
+     <div class="steps" style="margin:16px 0">${steps().map((s, i) => `<div class="step ${i + 1 < W.step ? "done" : i + 1 === W.step ? "cur" : ""}" style="cursor:default"><b>${i + 1}</b>${s}</div>`).join("")}</div>
      ${body}<div class="err" id="werr">${esc(W.err)}</div>
      <div class="wizfoot">${W.step < 4 || W.err ? `<button class="btn" data-a="cancel">Abbrechen</button>` : ""}${W.step > 1 && W.step < 4 ? `<button class="btn" data-a="back">Zurück</button>` : ""}<span class="sp"></span>
       ${W.step < 3 ? `<button class="btn pri big2" data-a="next" ${W.busy ? "disabled" : ""}>${W.busy ? "Bitte warten …" : "Weiter"}</button>` : W.step === 3 ? `<button class="btn pri big2" data-a="next" ${W.busy ? "disabled" : ""}>${mode === "create" ? "Einrichten & hochladen" : "Beitreten & laden"}</button>` : !W.busy ? (W.err ? `<button class="btn pri big2" data-a="back3">Zurück</button>` : `<button class="btn pri big2" data-a="done">Fertig</button>`) : ""}</div></div>`;
-    el.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { W.prov = b.dataset.p; draw(); });
+    el.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { if (b.disabled) return; W.prov = b.dataset.p; draw(); });
+    el.querySelectorAll("[data-sug]").forEach(b => b.onclick = () => { const x = W.fd.sugg[+b.dataset.sug]; W.fd.root = x.path; W.fd.label = x.path; draw(); });
     el.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { grab(); W.ms.target = b.dataset.t; draw(); if (W.ms.target === "shared" && !W.ms.sharedList) loadShared(); });
     const on = (a, f) => { const b = el.querySelector(`[data-a=${a}]`); if (b) b.onclick = f; };
     on("cancel", close); on("back", () => { grab(); W.err = ""; W.step--; draw(); }); on("back3", () => { W.err = ""; W.step = 3; W.log = []; draw(); });
     on("done", () => { el.remove(); if (opt.first) location.reload(); else render(); });
-    on("mslogin", msLogin); on("openms", () => api.openExternal(W.ms.code.verification_uri || "https://microsoft.com/devicelogin"));
+    on("mslogin", msLogin); on("fdpick", fdPick); on("openms", () => api.openExternal(W.ms.code.verification_uri || "https://microsoft.com/devicelogin"));
     on("next", next);
     const f = el.querySelector("input:not([type=hidden])"); if (f && W.step < 4) setTimeout(() => f.focus(), 30);
   };
   const grab = () => {
     const g = n => { const i = el.querySelector(`[name=${n}]`); return i ? i.value : undefined; };
+    if (W.step === 2 && W.prov === "folder" && g("fdroot") !== undefined) { const r = g("fdroot").trim(); if (r !== W.fd.root) { W.fd.root = r; W.fd.label = r; } }
     if (W.step === 2 && W.prov === "nextcloud") { W.nc.server = g("server").trim(); W.nc.user = g("user").trim(); W.nc.pass = g("pass"); W.nc.folder = g("folder").trim() || "MaklerProzess"; }
     if (W.step === 2 && W.prov === "onedrive") { W.ms.clientId = g("clientId").trim(); W.ms.tenant = g("tenant").trim() || "organizations"; if (g("siteUrl") !== undefined) W.ms.siteUrl = g("siteUrl").trim(); if (g("msfolder") !== undefined) W.ms.folder = g("msfolder").trim() || "MaklerProzess"; if (g("shared") !== undefined) W.ms.shared = +g("shared"); }
     if (W.step === 3) { if (g("pw") !== undefined) { W.pw = g("pw"); W.pw2 = g("pw2"); } if (g("secret") !== undefined) W.secret = g("secret"); W.devName = (g("dev") || "").trim(); }
@@ -422,12 +475,20 @@ function cloudWizard(mode, opt = {}) {
       W.ms.logged = true; W.ms.code = null; draw();
     } catch (e) { W.ms.code = null; W.ms.wait = false; if (!W.cancel) fail(e); }
   }
+  async function fdPick() {
+    grab(); W.err = "";
+    try { const r = await api.fdPick(W.fd.root || (W.fd.sugg && W.fd.sugg[0] ? W.fd.sugg[0].path.replace(/[\\/][^\\/]*$/, "") : "")); if (r) { W.fd.root = r.root; W.fd.label = r.label; } draw(); }
+    catch (e) { fail(e); }
+  }
   async function loadShared() {
     try { W.ms.sharedList = await PV.graphSharedFolders({ clientId: W.ms.clientId, tenant: W.ms.tenant, ...(ENV.cfg.msTest || {}) }, SYT, { get: () => api.secretGet("msRefresh"), set: v => api.secretSet("msRefresh", v) }); W.ms.shared = 0; draw(); }
     catch (e) { W.ms.sharedList = []; fail(e); }
   }
   async function connect() {
-    if (W.prov === "nextcloud") {
+    if (W.prov === "folder") {
+      if (!W.fd.root) throw new Error("Bitte einen Ordner wählen.");
+      W.cloudCfg = { provider: "folder", root: W.fd.root, label: W.fd.label || W.fd.root };
+    } else if (W.prov === "nextcloud") {
       if (!W.nc.server || !W.nc.user || !W.nc.pass) throw new Error("Bitte Adresse, Benutzer und App-Passwort angeben.");
       const root = PV.nextcloudRoot(W.nc.server, W.nc.user), host = new URL(root).host;
       await api.secretSet("ncPass", W.nc.pass);
@@ -446,13 +507,14 @@ function cloudWizard(mode, opt = {}) {
     W.provider = await syProvider(W.cloudCfg);
     await W.provider.test();
     const office = await W.provider.get("office.json");
+    if (office) { try { syJSON(office); } catch (e) { throw new Error("Die Büro-Datei im Ordner ist noch nicht vollständig übertragen. Bitte kurz warten, bis OneDrive bzw. die Sync-App fertig ist, und erneut „Weiter“."); } }
     if (mode === "create" && office) throw new Error("In diesem Ordner gibt es bereits ein Büro. Abbrechen und „Bestehendem Büro beitreten“ wählen – oder einen anderen Ordnernamen.");
-    if (mode === "join" && !office) throw new Error("In diesem Ordner wurde kein Büro gefunden. Ordner prüfen oder am ersten Gerät „Cloud-Sync einrichten“.");
+    if (mode === "join" && !office) throw new Error(W.prov === "folder" ? "In diesem Ordner wurde (noch) kein Büro gefunden. Ist der Ordner schon abgeglichen? Am PC zuerst „Büro im Ordner anlegen“ und warten, bis OneDrive bzw. die Sync-App die Dateien übertragen hat." : "In diesem Ordner wurde kein Büro gefunden. Ordner prüfen oder am ersten Gerät „Cloud-Sync einrichten“.");
   }
   async function next() {
     grab(); W.err = "";
     try {
-      if (W.step === 1) { W.step = 2; draw(); return; }
+      if (W.step === 1) { W.step = 2; draw(); if (W.prov === "folder" && !MOBILE && !W.fd.sugg) { try { W.fd.sugg = await api.fdSuggest(); if (!W.fd.root && W.fd.sugg[0]) { W.fd.root = W.fd.sugg[0].path; W.fd.label = W.fd.root; } } catch (e) { W.fd.sugg = []; } draw(); } return; }
       if (W.step === 2) { W.busy = true; draw(); await connect(); W.busy = false; W.step = 3; draw(); return; }
       if (W.step === 3) {
         if (mode === "create") { if ((W.pw || "").length < 10) throw new Error("Das Büro-Passwort braucht mindestens 10 Zeichen."); if (W.pw !== W.pw2) throw new Error("Die Passwörter stimmen nicht überein."); }
@@ -479,6 +541,19 @@ function cloudWizard(mode, opt = {}) {
 }
 async function cloudReauth() {
   const cl = ENV.cfg.cloud; if (!cl) return;
+  if (cl.provider === "folder") { // Ordner verschoben oder Android-Berechtigung verloren: neu wählen, muss dasselbe Büro enthalten
+    try {
+      const r = await api.fdPick(MOBILE ? undefined : cl.root); if (!r) return;
+      const prov = PV.folder({ root: r.root }, o => api.fd(o)); await prov.test();
+      let off = null; try { off = syJSON(await prov.get("office.json")); } catch (e) { throw new Error("Die Büro-Datei im Ordner ist noch nicht vollständig übertragen."); }
+      if (!off) throw new Error("In diesem Ordner liegt kein Büro.");
+      if (!(await SC.verifyKey(off, SY.key || await api.secretGet("officeKey")))) throw new Error("In diesem Ordner liegt ein anderes Büro – bitte den Ordner dieses Büros wählen.");
+      ENV.cfg = { ...ENV.cfg, ...await api.setCfg({ cloud: { ...cl, root: r.root, label: r.label } }) };
+      SY.prov = null; if (api.fdWatch) api.fdWatch(r.root).catch(() => {});
+      toast("Ordner übernommen"); cloudSync("ordner-neu");
+    } catch (e) { toast(e.message); }
+    return;
+  }
   if (cl.provider === "nextcloud") {
     modal("Nextcloud-Anmeldung erneuern", `<div class="form"><label>Benutzer</label><div>${esc(cl.user)} · ${esc(cl.host)}</div><label>App-Passwort</label><input name="p" type="password" autocomplete="new-password"></div>`,
       { ok: "Speichern & testen", onOk: ov => { const p = v(ov, "p"); if (!p) throw new Error("Bitte App-Passwort eingeben."); (async () => { await api.secretSet("ncPass", p); SY.prov = null; await cloudSync("anmeldung"); })(); } });

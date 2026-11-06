@@ -37,6 +37,11 @@ contextBridge.exposeInMainWorld("api", {
   dropSync: () => call("dropSync"),
   openExternal: u => call("openExternal", u),
   deviceInfo: () => call("deviceInfo"),
+  fd: o => call("fd", o),
+  fdSuggest: () => call("fdSuggest"),
+  fdPick: d => call("fdPick", d),
+  fdWatch: r => call("fdWatch", r),
+  onFdChange: fn => ipcRenderer.on("fd-change", (e, f) => fn(f)),
   onBeforeClose: fn => ipcRenderer.on("before-close", fn),
   runState: st => ipcRenderer.send("runState", st),
   onRunCmd: fn => ipcRenderer.on("run-cmd", (e, d) => fn(d))

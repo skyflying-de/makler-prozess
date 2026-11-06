@@ -259,7 +259,7 @@ h("restore", async file => {
   if (!file) { const r = await dialog.showOpenDialog(win, { title: "Sicherung wählen", defaultPath: backupDir(), filters: [{ name: "Sicherung", extensions: ["zip"] }], properties: ["openFile"] }); if (r.canceled) return null; file = r.filePaths[0]; }
   return restoreBackup(file);
 });
-h("openPath", rel => { const p = rel === "@data" ? cfg.dataDir : rel === "@backup" ? backupDir() : absFromRel(rel); fs.mkdirSync(fs.existsSync(p) && fs.statSync(p).isFile() ? path.dirname(p) : p, { recursive: true }); return shell.openPath(p); });
+h("openPath", rel => { const p = rel === "@data" ? cfg.dataDir : rel === "@backup" ? backupDir() : rel === "@cloud" && cfg.cloud && cfg.cloud.provider === "folder" ? fdRoot(cfg.cloud.root) : absFromRel(rel); fs.mkdirSync(fs.existsSync(p) && fs.statSync(p).isFile() ? path.dirname(p) : p, { recursive: true }); return shell.openPath(p); });
 h("showItem", rel => shell.showItemInFolder(absFromRel(rel)));
 h("importFiles", ({ paths, rel }) => {
   const dir = absFromRel(rel); fs.mkdirSync(dir, { recursive: true });
@@ -317,3 +317,105 @@ h("dropSync", () => { if (fs.existsSync(syncFile())) fs.renameSync(syncFile(), s
 h("openExternal", url => { if (/^https:\/\//.test(url)) shell.openExternal(url); return true; });
 h("deviceInfo", () => ({ id: cfg.deviceId, name: cfg.deviceName || os.hostname(), platform: "Windows", host: os.hostname(), version: VERSION }));
 h("openDoc", name => { const f = path.join(__dirname, path.basename(String(name))); if (!fs.existsSync(f)) throw new Error("Datei nicht gefunden: " + name); return shell.openPath(f); });
+
+/* ---------------- Ordner-Modus (OneDrive-Client, NAS …): Dateizugriff im gewählten Ordner ---------------- */
+const fdRoot = root => { if (!root || !path.isAbsolute(String(root))) throw new Error("Ordner ungültig"); return path.resolve(String(root)); };
+const fdAbs = (root, rel) => {
+  const r = fdRoot(root), a = path.resolve(r, String(rel || "").replace(/\\/g, "/"));
+  if (a !== r && !a.startsWith(r + path.sep)) throw new Error("Pfad außerhalb des Ordners");
+  return a;
+};
+const fdSkip = n => n.startsWith(".") || /\.(tmp|partial|crdownload|dl)$/i.test(n) || /^~\$/.test(n);
+h("fdSuggest", () => {
+  const out = [], seen = new Set();
+  for (const [k, l] of [["OneDriveCommercial", "OneDrive (Firma)"], ["OneDriveConsumer", "OneDrive (privat)"], ["OneDrive", "OneDrive"]]) {
+    const p = process.env[k]; if (p && fs.existsSync(p) && !seen.has(path.resolve(p))) { seen.add(path.resolve(p)); out.push({ label: l, path: path.join(p, "MaklerProzess") }); }
+  }
+  return out;
+});
+h("fdPick", async def => {
+  const r = await dialog.showOpenDialog(win, { title: "Gemeinsamen Ordner wählen", defaultPath: def || app.getPath("home"), properties: ["openDirectory", "createDirectory"] });
+  return r.canceled ? null : { root: r.filePaths[0], label: r.filePaths[0] };
+});
+/* Netzlaufwerk/NAS-Freigabe außer Reichweite: Zugriffe laufen nicht-blockierend und mit Zeitgrenze.
+ * Nach einem Ausfall wird der Ordner 30 Sek. gar nicht angefasst – hängende SMB-Zugriffe würden sonst
+ * den Datei-Thread-Pool belegen und auch das Speichern der eigenen Daten bremsen. */
+const fsp = fs.promises;
+const FD_TIMEOUT = +process.env.MP_FD_TIMEOUT || 8000, FD_PAUSE = +process.env.MP_FD_PAUSE || 30000;
+// nur für Tests: hängendes Netzlaufwerk nachstellen (solange die genannte Datei existiert, antwortet der Ordner nicht)
+const fdTestHang = () => process.env.MP_TEST_FD_HANG && fs.existsSync(process.env.MP_TEST_FD_HANG) ? 60000 : 0;
+const fdTime = (p, what) => new Promise((res, rej) => {
+  const t = setTimeout(() => rej(Object.assign(new Error("Ordner nicht erreichbar – keine Antwort (" + what + ")"), { code: "ETIMEDOUT" })), FD_TIMEOUT);
+  p.then(v => { clearTimeout(t); res(v); }, e => { clearTimeout(t); rej(e); });
+});
+const FDR = { root: null, ok: 0, down: 0, probe: null };
+function fdReach(r, force) {
+  if (FDR.root !== r || force) { FDR.root = r; FDR.ok = 0; FDR.down = 0; }
+  const now = Date.now();
+  if (FDR.down && now - FDR.down < FD_PAUSE) return Promise.reject(new Error("Ordner nicht erreichbar: " + r));
+  if (FDR.ok && now - FDR.ok < 5000) return Promise.resolve();
+  if (!FDR.probe) FDR.probe = fdTime((async () => {
+    const hang = fdTestHang(); if (hang) await new Promise(x => setTimeout(x, hang));
+    const st = await fsp.stat(r); if (!st.isDirectory()) throw new Error("kein Ordner");
+  })(), "Prüfung").then(() => { FDR.ok = Date.now(); FDR.down = 0; }, e => { FDR.down = Date.now(); FDR.ok = 0; throw new Error("Ordner nicht erreichbar: " + r + (e.code === "ETIMEDOUT" ? " (keine Antwort)" : "")); })
+    .finally(() => { FDR.probe = null; });
+  return FDR.probe;
+}
+// Unterordner anlegen, aber nie den Ordner selbst: fehlt er (Laufwerk getrennt, Ordner verschoben), gilt er als nicht erreichbar
+async function fdMkdirs(r, dir) {
+  const parts = path.relative(r, dir).split(path.sep).filter(Boolean); let cur = r;
+  for (const p of parts) { cur = path.join(cur, p); try { await fsp.mkdir(cur); } catch (e) { if (e.code === "EEXIST") continue; if (e.code === "ENOENT") { FDR.down = Date.now(); FDR.ok = 0; throw new Error("Ordner nicht erreichbar: " + r); } throw e; } }
+}
+const fdExists = p => fsp.stat(p).then(() => true, e => { if (e.code === "ENOENT") return false; throw e; });
+// Umbenennen mit Wiederholung: unter Windows halten OneDrive oder der Virenscanner die Zieldatei manchmal kurz offen
+const fdRename = async (tmp, dst) => {
+  for (let i = 0; ; i++) {
+    try { await fsp.rename(tmp, dst); return true; }
+    catch (e) { if (i >= 5 || !/EPERM|EACCES|EBUSY/.test(e.code || "")) throw e; await new Promise(r => setTimeout(r, 100 * (i + 1))); }
+  }
+};
+async function fdRun({ op, root, rel, b64 }) {
+  const r = fdRoot(root);
+  if (op === "test") { // ausdrückliche Prüfung im Assistenten: Sperre aufheben, Ordner ggf. anlegen, Schreibtest
+    FDR.root = r; FDR.down = 0; FDR.ok = 0;
+    if (!(await fdExists(r))) { if (!(await fdExists(path.dirname(r)))) throw new Error("Ordner nicht erreichbar: " + r); await fsp.mkdir(r, { recursive: true }); }
+    const probe = path.join(r, `.mp-test-${process.pid}-${Date.now()}`); await fsp.writeFile(probe, "ok"); await fsp.unlink(probe); return true;
+  }
+  await fdReach(r);
+  const a = fdAbs(r, rel);
+  if (op === "list") {
+    let ents; try { ents = await fsp.readdir(a, { withFileTypes: true }); } catch (e) { if (e.code === "ENOENT") return []; throw e; }
+    return Promise.all(ents.filter(e => !fdSkip(e.name)).map(async e => { let size = 0; if (!e.isDirectory()) { try { size = (await fsp.stat(path.join(a, e.name))).size; } catch (x) {} } return { name: e.name, dir: e.isDirectory(), size }; }));
+  }
+  if (op === "read") { try { return (await fsp.readFile(a)).toString("base64"); } catch (e) { if (e.code === "ENOENT") return null; throw e; } }
+  if (op === "write") {
+    await fdMkdirs(r, path.dirname(a));
+    const tmp = path.join(path.dirname(a), `.${path.basename(a)}.${crypto.randomBytes(4).toString("hex")}.tmp`);
+    try {
+      const fh = await fsp.open(tmp, "w"); try { await fh.writeFile(Buffer.from(b64 || "", "base64")); await fh.sync(); } finally { await fh.close(); }
+      return await fdRename(tmp, a);
+    } catch (e) { fsp.rm(tmp, { force: true }).catch(() => {}); throw e; }
+  }
+  if (op === "del") { await fsp.rm(a, { force: true }); return true; }
+  if (op === "mkdir") { await fdMkdirs(r, a); return true; }
+  throw new Error("Unbekannte Ordner-Aktion");
+}
+h("fd", o => fdTime(fdRun(o), o.op).catch(e => { if (e.code === "ETIMEDOUT") { FDR.down = Date.now(); FDR.ok = 0; } throw e; }));
+// Ordner beobachten: fremde Änderungen sofort melden (eigene Dateien und Zwischendateien ignorieren)
+let fdWatcher = null, fdTimer = null, fdWatchRoot = null;
+h("fdWatch", async root => {
+  if (root && fdWatcher && fdWatchRoot === root) return true; // läuft schon
+  try { if (fdWatcher) fdWatcher.close(); } catch (e) {}
+  fdWatchRoot = root || null;
+  fdWatcher = null; if (!root) return false;
+  const r = fdRoot(root); try { await fdReach(r); } catch (e) { fdWatchRoot = null; return false; }
+  try {
+    fdWatcher = fs.watch(r, { recursive: true }, (ev, file) => {
+      const f = String(file || "").replace(/\\/g, "/"), base = f.split("/").pop();
+      if (!f || fdSkip(base) || (cfg.deviceId && (f.includes("/" + cfg.deviceId + "/") || f.startsWith("devices/" + cfg.deviceId)))) return;
+      clearTimeout(fdTimer); fdTimer = setTimeout(() => { if (win && !win.isDestroyed()) win.webContents.send("fd-change", f); }, 1500);
+    });
+    fdWatcher.on("error", () => { try { fdWatcher.close(); } catch (e) {} fdWatcher = null; fdWatchRoot = null; });
+    return true;
+  } catch (e) { return false; }
+});

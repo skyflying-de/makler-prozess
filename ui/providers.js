@@ -1,4 +1,4 @@
-/* Makler-Prozess – Cloud-Anbieter: Nextcloud/WebDAV und OneDrive/SharePoint (Microsoft Graph)
+/* Makler-Prozess – Cloud-Anbieter: Nextcloud/WebDAV, OneDrive/SharePoint (Microsoft Graph) und lokaler Ordner
  * Gemeinsame Schnittstelle: test(), list(dir), get(rel), put(rel, bytes), del(rel), mkdirp(dir)
  * Netzwerk über T.http({method,url,headers,body}) → {status, headers, bytes:Uint8Array}
  */
@@ -235,7 +235,35 @@
     return j;
   }
 
-  const API = { webdav, nextcloudRoot, graph, graphResolveTarget, graphSharedFolders, msDeviceCode, msPollToken, msAuthUrl, msCodeToken, CloudError, encPath, parentOf };
+  /* =================== Ordner-Modus (lokal synchronisierter Ordner: OneDrive-Client, FolderSync, NAS …) ===================
+   * Die Plattform liefert F({op, root, rel, b64}) mit op = test | list | read | write | del | mkdir.
+   * Jedes Gerät schreibt nur eigene Dateien; der Sync-Client (OneDrive, FolderSync …) überträgt sie. */
+  function folder(cfg, F) {
+    if (!cfg || !cfg.root) throw new CloudError("Kein Ordner gewählt.", "cfg");
+    const clean = rel => { const a = String(rel || "").split(/[\\/]+/).filter(Boolean); if (a.some(x => x === ".." || x === ".")) throw new CloudError("Ungültiger Pfad.", "cfg"); return a.join("/"); };
+    const b64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+    const unb64 = s => { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+    const call = async o => {
+      try { return await F({ root: cfg.root, ...o }); } catch (e) {
+        const m = String(e && e.message || e);
+        if (/Keine Berechtigung/i.test(m)) throw new CloudError(m, "folder"); // Android-Freigabe entzogen → Ordner neu wählen
+        // Windows: Datei kurz gesperrt (OneDrive/Virenscanner), Laufwerk weg, OneDrive-Platzhalter ohne Netz → später erneut
+        if (/nicht erreichbar|ENOENT|ENOTDIR|EBUSY|EIO|EPERM|EACCES|UNKNOWN|ECLOUD|cloud/i.test(m)) throw new CloudError("Ordner nicht erreichbar – " + m.replace(/^Ordner nicht erreichbar[:– ]*/, ""), "offline");
+        throw new CloudError(m, "io");
+      }
+    };
+    return {
+      kind: "folder", label: "Ordner",
+      async test() { await call({ op: "test", rel: "" }); return true; },
+      async list(dir) { return (await call({ op: "list", rel: clean(dir) })) || []; },
+      async get(rel) { const r = await call({ op: "read", rel: clean(rel) }); return r === null || r === undefined ? null : unb64(r); },
+      async put(rel, bytes) { await call({ op: "write", rel: clean(rel), b64: b64(bytes instanceof Uint8Array ? bytes : te.encode(String(bytes))) }); return true; },
+      async del(rel) { await call({ op: "del", rel: clean(rel) }); return true; },
+      async mkdirp(dir) { await call({ op: "mkdir", rel: clean(dir) }); return true; }
+    };
+  }
+
+  const API = { webdav, folder, nextcloudRoot, graph, graphResolveTarget, graphSharedFolders, msDeviceCode, msPollToken, msAuthUrl, msCodeToken, CloudError, encPath, parentOf };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   G.Providers = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);

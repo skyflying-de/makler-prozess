@@ -13,7 +13,7 @@
     if (CAP.registerPlugin) return CAP.registerPlugin(name);
     return new Proxy({}, { get: (_, m) => o => CAP.nativePromise(name, m, o) });
   };
-  const NativeHttp = plug("NativeHttp"), Filesystem = plug("Filesystem"), Share = plug("Share"), Browser = plug("Browser"), App = plug("App");
+  const NativeHttp = plug("NativeHttp"), Filesystem = plug("Filesystem"), Share = plug("Share"), Browser = plug("Browser"), App = plug("App"), FolderAccess = plug("FolderAccess");
 
   /* ---------- Base64 ---------- */
   const b64 = u8 => { let s = ""; const c = 0x8000; for (let i = 0; i < u8.length; i += c) s += String.fromCharCode.apply(null, u8.subarray(i, i + c)); return btoa(s); };
@@ -283,12 +283,18 @@
     async dropSync() { const t = await I.get("kv", "sync"); if (t) await I.put("kv", "sync_alt_" + Date.now(), t); await I.del("kv", "sync"); return true; },
     async openExternal(url) { if (!/^https:\/\//.test(url)) return true; if (NATIVE) await Browser.open({ url }); else window.open(url, "_blank", "noopener"); return true; },
     async deviceInfo() { await getCfg(); return { id: cfg.deviceId, name: cfg.deviceName, platform: NATIVE ? "Android-App" : ANDROID_UA ? "Android (PWA)" : "Browser (PWA)", host: "", version: VERSION }; },
-    onBeforeClose: fn => closeFns.push(fn)
+    onBeforeClose: fn => closeFns.push(fn),
+    /* Ordner-Modus (nur Android-App): gewählter Ordner über das Android-Speicherzugriffs-Framework */
+    async fd(o) { if (!NATIVE) throw new Error("Ordner-Modus ist nur in der Android-App verfügbar."); const r = await FolderAccess.op({ op: o.op, uri: o.root, rel: o.rel || "", b64: o.b64 || null }); return r ? r.data : null; },
+    fdSuggest: async () => [],
+    async fdPick() { if (!NATIVE) throw new Error("Ordner-Modus ist nur in der Android-App verfügbar."); const r = await FolderAccess.pick(); return r && r.uri ? { root: r.uri, label: r.name || "Gewählter Ordner" } : null; },
+    fdWatch: async () => false,
+    onFdChange(fn) { if (NATIVE && App) App.addListener("resume", () => fn("resume")); }
   };
 
   /* ---------- Zusatzfunktionen für den Tablet-Modus ---------- */
   window.PLATFORM = {
-    kind: NATIVE ? "android" : "web", native: NATIVE, mobile: true, version: VERSION, lazyFiles: true,
+    kind: NATIVE ? "android" : "web", native: NATIVE, mobile: true, version: VERSION, lazyFiles: true, folderMode: NATIVE,
     msFlow: NATIVE ? "device" : "pkce",
     authRedirect: () => new URL("auth.html", location.href.split("#")[0].split("?")[0]).href,
     fileSrc, hydrate, ensureLocal, blobUrl,

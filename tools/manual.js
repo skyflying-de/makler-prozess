@@ -33,10 +33,10 @@ const extra = {
   "darstellung": [D("60_tablet_hoch_karten"), D("61_tablet_hoch_uebergabe")],
   "tablet": [D("86_tablet_abstand"), D("40_tablet_willkommen"), D("42_tablet_pin_festlegen"), D("43_tablet_start"), D("47_tablet_hochformat"), D("44_tablet_offline"), D("46_tablet_geraet")],
   "erste-schritte": [H("01_start")], "protokoll": [H("06_protokoll")], "abrechnung": [H("08_abrechnung")], "sicherung": [H("15_sicherung")],
-  "cloud": [D("27_modus_cloud"), D("28_start_cloud")]
+  "cloud": [D("27_modus_cloud"), D("28_start_cloud"), D("90_ordner_anbieter"), D("91_ordner_pc"), D("93_ordner_karte"), D("94_ordner_tablet"), D("95_ordner_offline")]
 };
 const cloudSteps = { id: "cloud-einrichten", title: "Cloud-Sync einrichten – Schritt für Schritt", shots: [D("21_wiz_anbieter"), D("22_wiz_nextcloud"), D("30_wiz_onedrive"), D("23_wiz_passwort"), D("24_wiz_fertig"), D("25_wiz_beitreten"), D("29_wer_arbeitet"), D("26_offline")], html: `
-<ol><li><b>Anbieter</b> wählen: Nextcloud oder OneDrive/SharePoint.</li><li><b>Verbindung</b>: Nextcloud-Adresse, Benutzer, App-Passwort und Ordner – bzw. Anwendungs-ID und Anmeldung per Code bei Microsoft.</li>
+<ol><li><b>Anbieter</b> wählen: Nextcloud, OneDrive/SharePoint oder <b>Gemeinsamer Ordner</b>.</li><li><b>Verbindung</b>: Nextcloud-Adresse, Benutzer, App-Passwort und Ordner – bzw. Anwendungs-ID und Anmeldung per Code bei Microsoft – bzw. beim Ordner-Modus den OneDrive-Ordner (am PC vorgeschlagen, am Tablet über „Ordner wählen“).</li>
 <li><b>Büro-Passwort</b> festlegen (erstes Gerät) bzw. eingeben (weitere Geräte).</li><li><b>Hochladen / Laden</b> – danach fragt ein neu beigetretenes Gerät, wer daran arbeitet.</li>
 <li>Ohne Verbindung zeigt die Leiste oben <b>„Offline · n Änderungen warten“</b>. Arbeiten geht normal weiter.</li></ol>
 <p class="tip">Vorbereitung (App-Passwort, App-Registrierung): <b>Einrichtung_Cloud.html</b>.</p>` };
