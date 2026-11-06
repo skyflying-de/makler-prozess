@@ -8,6 +8,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Eigene Erweiterung: Cloud-Zugriffe nativ (WebDAV-Methoden, ohne Browser-Sperren)
         registerPlugin(NativeHttpPlugin.class);
+        // Ordner-Modus: gewählter, von einer Sync-App abgeglichener Ordner (Speicherzugriffs-Framework)
+        registerPlugin(FolderAccessPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
