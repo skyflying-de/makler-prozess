@@ -1,4 +1,4 @@
-# Makler-Prozess 2.5.1
+# Makler-Prozess 2.6.0
 
 Programm für Verkauf & Vermietung: Fälle, Objekte, Aktionen mit Zeiterfassung, Übergabeprotokoll, Leistungsnachweis – lokal oder mit **Cloud-Sync** (Nextcloud / OneDrive) für mehrere Geräte.
 
@@ -15,6 +15,7 @@ Cloud-Sync hat drei Wege: Nextcloud, OneDrive/SharePoint oder **Gemeinsamer Ordn
 - `main.js`, `preload.js` – Windows-Hülle (Electron)
 - `ui/handover.js` – Übergabe-Stammdaten, Protokoll-Vorbelegung, Protokollverlauf
 - `ui/protoextras.js` – Zimmertürschlüssel, Anmerkungen/weitere Mängel, Sonstiges, Anleitungen, „+“-Menü je Raum
+- `ui/archive.js` – Archivieren & Löschen
 - `ui/platform-web.js` – Tablet-Hülle (Browser-App und Android-App), `web/` Service Worker & Anmelderückkehr
 - `android/` – Android-Projekt (Capacitor) mit `NativeHttpPlugin.java` und `FolderAccessPlugin.java`
 - `.github/workflows/tablet-app.yml` – baut APK und veröffentlicht die Browser-App (GitHub Pages)
@@ -22,5 +23,5 @@ Cloud-Sync hat drei Wege: Nextcloud, OneDrive/SharePoint oder **Gemeinsamer Ordn
 ## Entwicklung
 - `npm install` · Windows-App starten: `npx electron .`
 - Tablet-Version bauen: `node tools/build-web.js` (Ausgabe `www/`), Android-Projekt aktualisieren: `npx cap sync android`
-- Tests: `node test/core.test.js` · `xvfb-run -a node test/sync.e2e.js <tmp>` · `xvfb-run -a node test/graph.e2e.js <tmp>` · `node tools/build-web.js --test && xvfb-run -a node test/pwa.e2e.js <tmp>` · `xvfb-run -a node test/apk-mock.e2e.js <tmp>` · `xvfb-run -a node test/handover.e2e.js <tmp>` · `xvfb-run -a node test/timetracking.e2e.js <tmp>` · `node tools/build-web.js --test && xvfb-run -a node test/protoextras.e2e.js <tmp>` · Gemeinsamer Ordner: `xvfb-run -a node test/folder.e2e.js <tmp>` · Ordner Android: `node tools/build-web.js --test && xvfb-run -a node test/folder-apk.e2e.js <tmp>` · Layout: `xvfb-run -a node test/layout.audit.js <tmp> [--shots]`
+- Tests: `node test/core.test.js` · `xvfb-run -a node test/sync.e2e.js <tmp>` · `xvfb-run -a node test/graph.e2e.js <tmp>` · `node tools/build-web.js --test && xvfb-run -a node test/pwa.e2e.js <tmp>` · `xvfb-run -a node test/apk-mock.e2e.js <tmp>` · `xvfb-run -a node test/handover.e2e.js <tmp>` · `xvfb-run -a node test/timetracking.e2e.js <tmp>` · `node tools/build-web.js --test && xvfb-run -a node test/protoextras.e2e.js <tmp>` · Gemeinsamer Ordner: `xvfb-run -a node test/folder.e2e.js <tmp>` · Ordner Android: `node tools/build-web.js --test && xvfb-run -a node test/folder-apk.e2e.js <tmp>` · Archivieren & Löschen: `node tools/build-web.js --test && xvfb-run -a node test/archive.e2e.js <tmp> [<pfad-zur-2.5.1-app>]` · Layout: `xvfb-run -a node test/layout.audit.js <tmp> [--shots]`
 - Anleitung neu erzeugen: `node tools/manual.js` · App-Symbole: `node tools/icons.js`

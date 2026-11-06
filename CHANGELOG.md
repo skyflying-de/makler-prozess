@@ -1,5 +1,17 @@
 # Changelog – Makler-Prozess
 
+## 2.6.0 – 2026-11-06
+Fälle und Objekte archivieren, zurückholen und endgültig löschen – mit Aufbewahrungsfrist.
+
+- **Archivieren** (nur Admins, am PC/Laptop): im Fall bzw. Objekt oben rechts. Archivierte Fälle verschwinden aus Fällen, Phasen-Ansicht, Start, Kalender und Auswertungen; Daten bleiben vollständig erhalten und nur lesbar. Jederzeit möglich, aber gesperrt, solange Termine/Wiedervorlagen offen sind oder eine Zeit läuft. Objekt optional mit archivieren, wenn kein aktiver Fall mehr daran hängt.
+- **Archiv-Ansicht:** Filter „Aktiv / Archiv (n)“ in Fällen und Objekten, Kennzeichnung „archiviert“, Hinweis mit Datum, Person und „Löschen erlaubt ab …“; „Zurückholen“.
+- **Endgültig löschen** (nur Admins, nur aus dem Archiv): entfernt den Fall mit Zeiten, Terminen, Protokollen und Dokumenten auf allen Geräten; Bestätigung durch Eintippen der Nummer; vor Fristende nur mit Begründung. Objekte löschbar, wenn keine Fälle mehr daran hängen. Dokumente, die noch anderswo verwendet werden, bleiben erhalten.
+- **Aufbewahrung:** Einstellungen → Daten → „Archiv & Aufbewahrung“ mit Frist 6 / 10 Jahre / eigene (Standard 10, Beginn Ende des Abschlussjahres), Liste „Löschen fällig“, Löschprotokoll nur mit Nummer, Datum, Person, Begründung.
+- **Auswertungen:** Schalter „inkl. Archiv“, standardmäßig aus.
+- **Tablet:** blendet Archiviertes komplett aus (neue APK nötig). Geräte mit 2.5.x gleichen weiter ab und zeigen Archiviertes normal an; nachgereichte Einträge zu gelöschten Fällen werden automatisch aufgeräumt.
+- **Doku:** Hilfe-Thema und Anleitungskapitel „Archivieren & Löschen“.
+- Tests: neuer E2E-Test archive.e2e.js (50 Prüfungen, inkl. Mischbetrieb PC 2.6.0 ⇄ Gerät 2.5.1 und Tablet-Ausblendung); Layout-Prüfung um Archiv-Ansichten erweitert
+
 ## 2.5.1 – 2026-11-06
 Ordner-Modus für die Büro-NAS: Netzlaufwerk am PC/Laptop, unterwegs weiterarbeiten, im Büronetz automatisch abgleichen.
 

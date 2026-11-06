@@ -518,3 +518,8 @@ textarea.pxsonst{min-height:220px;width:100%}
 .pop{z-index:66}
 .capttl .capbtn.sm.pxplus{margin-left:8px}
 .ro>span{min-width:0}.ro .seg{flex-wrap:wrap;max-width:100%}
+
+/* 2.6 Archiv */
+.ardis{opacity:.5;cursor:not-allowed!important;pointer-events:none}
+.arbanner{background:var(--panel2);color:var(--ink)}
+.tag.artag{margin-left:4px;vertical-align:1px}

@@ -61,6 +61,15 @@ const HELP=[
 {id:"abrechnung",title:"Abschluss & Abrechnung",shot:"08_abrechnung",html:`
 <p>Je Fall wählbare <b>Abrechnungsart</b>: Courtage (Zeit nur Nachweis), Stunden nach Leistungskatalog, Courtage + Zusatzleistungen (ankreuzen) oder Pauschale.</p>
 <p><b>Drucken / PDF</b> erzeugt den Leistungsnachweis im Firmendesign (Druckvorschau mit „Drucken“ und „Als PDF speichern“).</p>`},
+{id:"archiv",title:"Archivieren & Löschen",html:`
+<p>Erledigte oder abgebrochene Fälle können <b>archiviert</b> werden (nur Admins, am PC/Laptop): im Fall oben rechts <b>Archivieren …</b>. Archivierte Fälle verschwinden aus Fällen, Phasen-Ansicht, Start, Kalender und Auswertungen – die Daten bleiben vollständig erhalten und sind <b>nur lesbar</b>.</p>
+<ul><li>Archivieren ist gesperrt, solange ein Termin, eine Wiedervorlage oder eine Zeit des Falls offen ist.</li>
+<li>Hängt am Objekt kein aktiver Fall mehr, kann es gleich mit archiviert werden. Objekte ohne aktive Fälle lassen sich auch einzeln archivieren.</li>
+<li><b>Fälle → Archiv</b> bzw. <b>Objekte → Archiv</b> zeigt alles Archivierte; dort öffnen und <b>Zurückholen</b>.</li>
+<li><b>Auswertungen</b>: Schalter „inkl. Archiv“ (standardmäßig aus).</li>
+<li>Auf dem <b>Tablet</b> ist Archiviertes komplett ausgeblendet. Geräte mit älterer Version zeigen es weiter an.</li></ul>
+<h3>Endgültig löschen</h3><p>Nur aus dem Archiv und nur für Admins: <b>Endgültig löschen …</b> entfernt den Fall mit Zeiten, Terminen, Protokollen und Dokumenten auf <b>allen Geräten</b>. Zur Bestätigung die Fallnummer eintippen. Vor Ablauf der Aufbewahrungsfrist ist eine Begründung nötig. Objekte lassen sich löschen, wenn keine Fälle mehr daran hängen.</p>
+<h3>Aufbewahrung</h3><p>Einstellungen → Daten → <b>Archiv &amp; Aufbewahrung</b>: Frist 6 / 10 Jahre / eigene (Standard 10), Beginn am Ende des Abschlussjahres. Die Liste <b>Löschen fällig</b> zeigt Fälle, deren Frist abgelaufen ist. Das Löschprotokoll enthält nur Nummer, Datum, Person und ggf. Begründung.</p>`},
 {id:"termine",title:"Termine & Wiedervorlagen",shot:"09_termine",html:`
 <p>Wochenansicht aller Termine (farbig nach Verkauf/Vermietung) und Wiedervorlagen. Klick öffnet den Eintrag; „+“ im Tag legt einen Termin an.</p>`},
 {id:"zeiten",title:"Zeiterfassung",shot:"10_zeiten",html:`

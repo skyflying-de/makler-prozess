@@ -32,7 +32,7 @@ const extra = {
   "uebergabe": [D("56_verlauf"), D("75_raeume_umbenennen"), D("76_raum_im_protokoll"), D("50_objekt_uebergabe"), D("52_neues_protokoll"), D("53_maengel_pruefen"), D("54_erfassung_vorwert"), D("55_abweichungen")],
   "darstellung": [D("60_tablet_hoch_karten"), D("61_tablet_hoch_uebergabe")],
   "tablet": [D("86_tablet_abstand"), D("40_tablet_willkommen"), D("42_tablet_pin_festlegen"), D("43_tablet_start"), D("47_tablet_hochformat"), D("44_tablet_offline"), D("46_tablet_geraet")],
-  "erste-schritte": [H("01_start")], "protokoll": [H("06_protokoll")], "abrechnung": [H("08_abrechnung")], "sicherung": [H("15_sicherung")],
+  "erste-schritte": [H("01_start")], "protokoll": [H("06_protokoll")], "abrechnung": [H("08_abrechnung")], "archiv": [D("a1_faelle_archiv"), D("a0_archiv_dialog"), D("a2_fall_archiviert"), D("a4_loeschen"), D("a3_einst_archiv"), D("a5_tablet")], "sicherung": [H("15_sicherung")],
   "cloud": [D("27_modus_cloud"), D("28_start_cloud"), D("90_ordner_anbieter"), D("91_ordner_pc"), D("93_ordner_karte"), D("94_ordner_tablet"), D("95_ordner_offline")]
 };
 const cloudSteps = { id: "cloud-einrichten", title: "Cloud-Sync einrichten – Schritt für Schritt", shots: [D("21_wiz_anbieter"), D("22_wiz_nextcloud"), D("30_wiz_onedrive"), D("23_wiz_passwort"), D("24_wiz_fertig"), D("25_wiz_beitreten"), D("29_wer_arbeitet"), D("26_offline")], html: `
