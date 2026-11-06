@@ -29,6 +29,12 @@ const SCENES = [
   ["cap-abschluss", "openCapture(DB.protocols[0].id,capPages(DB.protocols[0]).length-1)"],
   ["dlg-unterschrift", "closeCap();signDigital(DB.protocols[0].id)"],
   ["dlg-cloud-ordner", "SETTAB='daten';go('einstellungen');cloudWizard(MOBILE?'join':'create')"], ["dlg-cloud-ordner2", "document.querySelector('.wiz [data-p=folder]:not([disabled])')&&document.querySelector('.wiz [data-p=folder]').click();document.querySelector('.wiz [data-a=next]').click()"],
+  ["dlg-archiv", "window.__arc=(DB.cases.find(c=>!c.archived&&!DB.tasks.some(t=>t.caseId===c.id&&!t.done)&&!DB.entries.some(e=>e.caseId===c.id&&!e.end))||DB.cases[0]).id;TAB='daten';go('fall',window.__arc);arArchiveCaseDlg(window.__arc)", true],
+  ["fall-archiviert", "caseBy(window.__arc).archived={at:Date.now(),by:'u1',name:'Test'};TAB='daten';go('fall',window.__arc)", true],
+  ["dlg-loeschen", "arDeleteCaseDlg(window.__arc)", true],
+  ["faelle-archiv", "FARCH=true;go('faelle')", true],
+  ["objekte-archiv", "OARCH=true;go('objekte')", true],
+  ["archiv-zurueck", "delete caseBy(window.__arc).archived;FARCH=false;OARCH=false;go('start')", true],
   ["druckvorschau", "printDoc(buildProtoDoc(DB.protocols[0]))"], ["hilfe", "help()"]
 ];
 const AUDIT = () => {
