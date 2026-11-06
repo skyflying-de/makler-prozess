@@ -28,6 +28,7 @@ const SCENES = [
   ["cap-schluessel", "openCapture(DB.protocols[0].id,capPages(DB.protocols[0]).findIndex(x=>x.s&&x.s.type==='keys'))"],
   ["cap-abschluss", "openCapture(DB.protocols[0].id,capPages(DB.protocols[0]).length-1)"],
   ["dlg-unterschrift", "closeCap();signDigital(DB.protocols[0].id)"],
+  ["dlg-cloud-ordner", "SETTAB='daten';go('einstellungen');cloudWizard(MOBILE?'join':'create')"], ["dlg-cloud-ordner2", "document.querySelector('.wiz [data-p=folder]:not([disabled])')&&document.querySelector('.wiz [data-p=folder]').click();document.querySelector('.wiz [data-a=next]').click()"],
   ["druckvorschau", "printDoc(buildProtoDoc(DB.protocols[0]))"], ["hilfe", "help()"]
 ];
 const AUDIT = () => {
@@ -53,7 +54,7 @@ async function run(kind, page, vps, report, setup) {
     if (setup) await setup();
     for (const [sc, code, deskOnly] of SCENES) {
       if (deskOnly && kind === "tablet") continue;
-      try { await Promise.race([page.evaluate(c => { document.querySelectorAll(".ov,.pvov,.helpov,.pop,.lightbox").forEach(x => { if (!x.classList.contains("hodlg")) x.remove(); }); (0, eval)(c); }, code), new Promise((_, j) => setTimeout(() => j(new Error("Zeitüberschreitung Szene")), 15000))]); } catch (e) { report.push({ kind, vp: label, scene: sc, issues: ["Fehler: " + e.message.split("\n")[0]] }); continue; }
+      try { await Promise.race([page.evaluate(c => { document.querySelectorAll(".ov,.pvov,.helpov,.pop,.lightbox").forEach(x => { if (!x.classList.contains("hodlg")) x.remove(); }); if (!/data-p=folder/.test(c)) document.querySelectorAll(".wiz").forEach(x => x.remove()); (0, eval)(c); }, code), new Promise((_, j) => setTimeout(() => j(new Error("Zeitüberschreitung Szene")), 15000))]); } catch (e) { report.push({ kind, vp: label, scene: sc, issues: ["Fehler: " + e.message.split("\n")[0]] }); continue; }
       await page.waitForTimeout(220);
       const issues = await Promise.race([page.evaluate(AUDIT), new Promise(r => setTimeout(() => r(["Prüfung: Zeitüberschreitung"]), 15000))]);
       process.stdout.write(`${kind} ${label} ${sc}: ${issues.length}\n`);
